@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Party Ledger - Adiraj Enterprises</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover {
+  background:#1a2a40;
+}
+
+/* CONTENT */
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+select, button {
+  padding:8px;
+  margin:5px;
+}
+
+button {
+  background:#1a2a40;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+button:hover {
+  background:#243b55;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+
+/* PRINT STYLE */
+@media print {
+  .sidebar, select, button, h2 {
+    display:none !important;
+  }
+
+  .content {
+    margin-left:0;
+  }
+
+  #printHeader {
+    display:block !important;
+  }
+
+  table, th, td {
+    border:1px solid black;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+  <a href="payments.html">💰 Payments</a>
+</div>
+
+<div class="content">
+
+<h2>Party Ledger</h2>
+
+<label>Select Party:</label>
+<select id="partySelect"></select>
+<button onclick="loadLedger()">View Ledger</button>
+<button onclick="window.print()">Print</button>
+
+<!-- PRINT HEADER -->
+<div id="printHeader" style="display:none; text-align:center; margin-top:20px;">
+  <img src="assets/logo.png" style="height:80px;"><br>
+  <strong>Adiraj Enterprises</strong><br>
+  Owner: Sachin Vijaychand Jain<br>
+  Mob: 8655599968 / 9303102823
+  <hr>
+</div>
+
+<table id="ledgerTable">
+  <tr>
+    <th>Date</th>
+    <th>Description</th>
+    <th>Debit (₹)</th>
+    <th>Credit (₹)</th>
+    <th>Balance (₹)</th>
+  </tr>
+</table>
+
+<h3>Final Balance: ₹ <span id="finalBalance">0</span></h3>
+
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+async function checkAccess(allowedRoles) {
+
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const { data, error } = await client
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !allowedRoles.includes(data.role)) {
+    alert("Access Denied");
+    window.location.href = "dashboard.html";
+  }
+  async function logout() {
+  await client.auth.signOut();
+  window.location.href = "login.html";
+}
+}
+/* LOAD PARTIES */
+async function loadParties() {
+  const { data } = await client
+    .from("parties")
+    .select("*")
+    .order("name", { ascending: true });
+
+  const select = document.getElementById("partySelect");
+  select.innerHTML = "";
+  data.forEach(p => {
+    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+}
+
+/* LOAD LEDGER */
+async function loadLedger() {
+
+  const partyId = document.getElementById("partySelect").value;
+
+  const { data: invoices } = await client
+    .from("invoices")
+    .select("*")
+    .eq("party_id", partyId);
+
+  const { data: payments } = await client
+    .from("payments")
+    .select("*")
+    .eq("party_id", partyId);
+
+  let transactions = [];
+
+  invoices.forEach(inv => {
+    transactions.push({
+      date: inv.invoice_date,
+      desc: "Invoice " + inv.invoice_no,
+      debit: inv.total,
+      credit: 0
+    });
+  });
+
+  payments.forEach(pay => {
+    transactions.push({
+      date: pay.payment_date,
+      desc: "Payment (" + pay.payment_method + ")",
+      debit: 0,
+      credit: pay.amount
+    });
+  });
+
+  transactions.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  let balance = 0;
+
+  const table = document.getElementById("ledgerTable");
+  table.innerHTML = `
+    <tr>
+      <th>Date</th>
+      <th>Description</th>
+      <th>Debit (₹)</th>
+      <th>Credit (₹)</th>
+      <th>Balance (₹)</th>
+    </tr>
+  `;
+
+  transactions.forEach(t => {
+    balance += t.debit - t.credit;
+
+    table.innerHTML += `
+      <tr>
+        <td>${t.date}</td>
+        <td>${t.desc}</td>
+        <td>${t.debit || ""}</td>
+        <td>${t.credit || ""}</td>
+        <td>${balance}</td>
+      </tr>
+    `;
+  });
+
+  document.getElementById("finalBalance").innerText = balance;
+}
+checkAccess(['admin']);
+loadParties();
+</script>
+
+</body>
+</html>

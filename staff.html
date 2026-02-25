@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Staff Management - Adiraj Enterprises</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#f4f6f9;
+}
+
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover {
+  background:#1a2a40;
+}
+
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+input, select {
+  padding:8px;
+  margin:5px;
+}
+
+button {
+  padding:8px 15px;
+  background:#1a2a40;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+button:hover {
+  background:#243b55;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+</div>
+
+<div class="content">
+
+<h2>Staff Management</h2>
+
+<h3>Create New Staff</h3>
+
+<input type="email" id="staffEmail" placeholder="Staff Email">
+<input type="password" id="staffPassword" placeholder="Password">
+
+<select id="staffRole">
+  <option value="staff">Staff</option>
+  <option value="viewer">Viewer</option>
+  <option value="admin">Admin</option>
+</select>
+
+<button onclick="createStaff()">Create Staff</button>
+
+<hr>
+
+<h3>Existing Staff</h3>
+
+<table id="staffTable">
+  <tr>
+    <th>Email</th>
+    <th>Role</th>
+    <th>Action</th>
+  </tr>
+</table>
+
+</div>
+
+<script>
+
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+
+/* Role Protection */
+async function checkAccess() {
+
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const { data } = await client
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (data.role !== "admin") {
+    alert("Access Denied");
+    window.location.href = "dashboard.html";
+  }
+  async function logout() {
+    await client.auth.signOut();
+    window.location.href = "login.html";
+}
+}
+
+/* Create Staff */
+async function createStaff() {
+
+  const email = document.getElementById("staffEmail").value;
+  const password = document.getElementById("staffPassword").value;
+  const role = document.getElementById("staffRole").value;
+
+  if (!email || !password) {
+    alert("Email and Password required");
+    return;
+  }
+
+  const { data, error } = await client.auth.signUp({
+    email: email,
+    password: password
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await client.from("user_roles").insert([{
+    user_id: data.user.id,
+    role: role
+  }]);
+
+  alert("Staff Created");
+
+  document.getElementById("staffEmail").value = "";
+  document.getElementById("staffPassword").value = "";
+
+  loadStaff();
+}
+
+/* Load Staff List */
+async function loadStaff() {
+
+  const { data } = await client
+    .from("user_roles")
+    .select("role, user_id");
+
+  const table = document.getElementById("staffTable");
+
+  table.innerHTML = `
+    <tr>
+      <th>User ID</th>
+      <th>Role</th>
+      <th>Action</th>
+    </tr>
+  `;
+
+  data.forEach(staff => {
+
+    table.innerHTML += `
+      <tr>
+        <td>${staff.user_id}</td>
+        <td>${staff.role}</td>
+        <td>
+          <button onclick="deleteStaff('${staff.user_id}')">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+/* Delete Staff */
+async function deleteStaff(userId) {
+
+  if (!confirm("Delete this staff?")) return;
+
+  await client.from("user_roles")
+    .delete()
+    .eq("user_id", userId);
+
+  alert("Staff Role Removed");
+  loadStaff();
+}
+
+checkAccess();
+loadStaff();
+
+</script>
+
+</body>
+</html>

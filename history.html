@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Invoice History - Adiraj Enterprises</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover {
+  background:#1a2a40;
+}
+
+/* CONTENT */
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+select, input, button {
+  padding:8px;
+  margin:5px;
+}
+
+button {
+  background:#1a2a40;
+  color:white;
+  border:none;
+  cursor:pointer;
+}
+
+button:hover {
+  background:#243b55;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+
+.status-paid {
+  color:green;
+  font-weight:bold;
+}
+
+.status-pending {
+  color:red;
+  font-weight:bold;
+}
+
+.status-partial {
+  color:orange;
+  font-weight:bold;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+</div>
+
+<div class="content">
+
+<h2>Invoice History</h2>
+
+<label>Search Invoice:</label>
+<input type="text" id="searchInvoice" onkeyup="loadInvoices()">
+
+<label>Filter Party:</label>
+<select id="partyFilter" onchange="loadInvoices()"></select>
+
+<button onclick="loadInvoices()">Refresh</button>
+
+<table id="invoiceTable">
+  <tr>
+    <th>Date</th>
+    <th>Invoice No</th>
+    <th>Party</th>
+    <th>Total</th>
+    <th>Paid</th>
+    <th>Balance</th>
+    <th>Status</th>
+    <th>Actions</th>
+  </tr>
+</table>
+
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+
+/* LOAD PARTIES FOR FILTER */
+async function loadParties() {
+  const { data } = await client
+    .from("parties")
+    .select("*")
+    .order("name", { ascending: true });
+
+  const select = document.getElementById("partyFilter");
+  select.innerHTML = `<option value="">All Parties</option>`;
+
+  data.forEach(p => {
+    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+}
+
+/* LOAD INVOICES */
+async function loadInvoices() {
+
+  const searchValue = document.getElementById("searchInvoice").value.toLowerCase();
+  const partyFilter = document.getElementById("partyFilter").value;
+
+  let query = client
+    .from("invoices")
+    .select("*, parties(name)")
+    .order("created_at", { ascending: false });
+
+  if (partyFilter) {
+    query = query.eq("party_id", partyFilter);
+  }
+
+  const { data } = await query;
+
+  const table = document.getElementById("invoiceTable");
+  table.innerHTML = `
+    <tr>
+      <th>Date</th>
+      <th>Invoice No</th>
+      <th>Party</th>
+      <th>Total</th>
+      <th>Paid</th>
+      <th>Balance</th>
+      <th>Status</th>
+      <th>Actions</th>
+    </tr>
+  `;
+
+  data
+    .filter(inv => inv.invoice_no.toLowerCase().includes(searchValue))
+    .forEach(inv => {
+
+      let statusClass = "";
+      if (inv.status === "Paid") statusClass = "status-paid";
+      else if (inv.status === "Partial") statusClass = "status-partial";
+      else statusClass = "status-pending";
+
+      table.innerHTML += `
+        <tr>
+          <td>${inv.invoice_date}</td>
+          <td>${inv.invoice_no}</td>
+          <td>${inv.parties.name}</td>
+          <td>₹${inv.total}</td>
+          <td>₹${inv.paid_amount || 0}</td>
+          <td>₹${inv.balance}</td>
+          <td class="${statusClass}">${inv.status}</td>
+          <td>
+            <button onclick="viewInvoice('${inv.id}')">View</button>
+            <button onclick="deleteInvoice('${inv.id}')">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+}
+
+/* VIEW INVOICE ITEMS */
+async function viewInvoice(id) {
+
+  const { data } = await client
+    .from("invoice_items")
+    .select("*, items(name)")
+    .eq("invoice_id", id);
+
+  let message = "Invoice Items:\n\n";
+
+  data.forEach(item => {
+    message += `${item.items.name} - ${item.quantity_pieces} pcs - ₹${item.amount}\n`;
+  });
+
+  alert(message);
+}
+
+/* DELETE INVOICE */
+async function deleteInvoice(id) {
+  if (confirm("Delete this invoice?")) {
+    await client.from("invoices").delete().eq("id", id);
+    loadInvoices();
+  }
+}
+
+loadParties();
+loadInvoices();
+</script>
+
+</body>
+</html>

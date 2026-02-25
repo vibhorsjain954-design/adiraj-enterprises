@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Payment Entry - Adiraj Enterprises</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover {
+  background:#1a2a40;
+}
+
+/* CONTENT */
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+select, input {
+  padding:8px;
+  margin:5px;
+}
+
+button {
+  padding:8px 15px;
+  background:#1a2a40;
+  color:white;
+  border:none;
+  cursor:pointer;
+  margin:5px;
+}
+
+button:hover {
+  background:#243b55;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+</div>
+
+<div class="content">
+
+<h2>Payment Entry</h2>
+
+<label>Party:</label>
+<select id="partySelect" onchange="loadInvoices()"></select>
+
+<br>
+
+<label>Invoice:</label>
+<select id="invoiceSelect"></select>
+
+<br>
+
+<input type="number" id="paymentAmount" placeholder="Payment Amount">
+
+<select id="paymentMethod">
+  <option>Cash</option>
+  <option>Cheque</option>
+  <option>PhonePe</option>
+  <option>ICICI Pay</option>
+  <option>Bank Transfer</option>
+</select>
+
+<input type="date" id="paymentDate">
+
+<button onclick="savePayment()">Save Payment</button>
+
+<hr>
+
+<h3>Payment History</h3>
+
+<table id="paymentTable">
+  <tr>
+    <th>Date</th>
+    <th>Party</th>
+    <th>Invoice</th>
+    <th>Amount</th>
+    <th>Method</th>
+  </tr>
+</table>
+
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+
+async function checkAccess(allowedRoles) {
+
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const { data, error } = await client
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !allowedRoles.includes(data.role)) {
+    alert("Access Denied");
+    window.location.href = "dashboard.html";
+  }
+  async function logout() {
+    await client.auth.signOut();
+    window.location.href = "login.html";
+}
+}
+/* LOAD PARTIES */
+async function loadParties() {
+  const { data } = await client
+    .from("parties")
+    .select("*")
+    .order("name", { ascending: true });
+
+  const select = document.getElementById("partySelect");
+  select.innerHTML = "";
+  data.forEach(p => {
+    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+
+  loadInvoices();
+}
+
+/* LOAD INVOICES FOR SELECTED PARTY */
+async function loadInvoices() {
+
+  const partyId = document.getElementById("partySelect").value;
+
+  const { data } = await client
+    .from("invoices")
+    .select("*")
+    .eq("party_id", partyId)
+    .neq("status", "Paid")
+    .order("created_at", { ascending: false });
+
+  const select = document.getElementById("invoiceSelect");
+  select.innerHTML = "";
+
+  data.forEach(inv => {
+    select.innerHTML += `
+      <option value="${inv.id}" data-balance="${inv.balance}">
+        ${inv.invoice_no} - Balance ₹${inv.balance}
+      </option>`;
+  });
+}
+
+/* SAVE PAYMENT */
+async function savePayment() {
+
+  const partyId = document.getElementById("partySelect").value;
+  const invoiceId = document.getElementById("invoiceSelect").value;
+  const amount = Number(document.getElementById("paymentAmount").value);
+  const method = document.getElementById("paymentMethod").value;
+  const date = document.getElementById("paymentDate").value;
+
+  if (!amount || amount <= 0) {
+    alert("Enter valid amount");
+    return;
+  }
+
+  const { data: invoice } = await client
+    .from("invoices")
+    .select("*")
+    .eq("id", invoiceId)
+    .single();
+
+  const newPaid = (invoice.paid_amount || 0) + amount;
+  const newBalance = invoice.total - newPaid;
+
+  let newStatus = "Pending";
+  if (newBalance <= 0) newStatus = "Paid";
+  else if (newPaid > 0) newStatus = "Partial";
+
+  await client.from("payments").insert([{
+    party_id: partyId,
+    invoice_id: invoiceId,
+    invoice_no: invoice.invoice_no,
+    amount: amount,
+    payment_method: method,
+    payment_date: date
+  }]);
+
+  await client.from("invoices")
+    .update({
+      paid_amount: newPaid,
+      balance: newBalance,
+      status: newStatus
+    })
+    .eq("id", invoiceId);
+
+  alert("Payment Saved");
+
+  document.getElementById("paymentAmount").value = "";
+  loadInvoices();
+  loadPayments();
+}
+
+/* LOAD PAYMENT HISTORY */
+async function loadPayments() {
+
+  const { data } = await client
+    .from("payments")
+    .select("*, parties(name)")
+    .order("created_at", { ascending: false });
+
+  const table = document.getElementById("paymentTable");
+  table.innerHTML = `
+    <tr>
+      <th>Date</th>
+      <th>Party</th>
+      <th>Invoice</th>
+      <th>Amount</th>
+      <th>Method</th>
+    </tr>
+  `;
+
+  data.forEach(p => {
+    table.innerHTML += `
+      <tr>
+        <td>${p.payment_date}</td>
+        <td>${p.parties.name}</td>
+        <td>${p.invoice_no}</td>
+        <td>₹${p.amount}</td>
+        <td>${p.payment_method}</td>
+      </tr>
+    `;
+  });
+}
+
+loadParties();
+loadPayments();
+checkAccess(['admin','staff']);
+</script>
+
+</body>
+</html>

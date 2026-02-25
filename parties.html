@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Party Management - Adiraj Enterprises</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover {
+  background:#1a2a40;
+}
+
+/* CONTENT */
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+input {
+  padding:8px;
+  margin:5px;
+}
+
+button {
+  padding:8px 15px;
+  background:#1a2a40;
+  color:white;
+  border:none;
+  cursor:pointer;
+  margin:5px;
+}
+
+button:hover {
+  background:#243b55;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+  <a href="stock.html">📦 Stock</a>
+</div>
+
+<div class="content">
+
+<h2>Party Management</h2>
+
+<h3>Add / Update Party</h3>
+
+<input type="hidden" id="partyId">
+
+<input type="text" id="partyName" placeholder="Party Name">
+<input type="text" id="partyMobile" placeholder="Mobile">
+<input type="text" id="partyAddress" placeholder="Address">
+
+<button onclick="saveParty()">Save</button>
+
+<hr>
+
+<h3>Party List</h3>
+
+<input type="text" id="searchParty" placeholder="Search Party" onkeyup="loadParties()">
+
+<table id="partyTable">
+  <tr>
+    <th>Name</th>
+    <th>Mobile</th>
+    <th>Address</th>
+    <th>Actions</th>
+  </tr>
+</table>
+
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+async function checkAccess(allowedRoles) {
+
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const { data, error } = await client
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !allowedRoles.includes(data.role)) {
+    alert("Access Denied");
+    window.location.href = "dashboard.html";
+  }
+  async function logout() {
+    await client.auth.signOut();
+    window.location.href = "login.html";
+}
+}
+/* LOAD PARTIES */
+async function loadParties() {
+
+  const searchValue = document.getElementById("searchParty").value.toLowerCase();
+
+  const { data } = await client
+    .from("parties")
+    .select("*")
+    .order("name", { ascending: true });
+
+  const table = document.getElementById("partyTable");
+  table.innerHTML = `
+    <tr>
+      <th>Name</th>
+      <th>Mobile</th>
+      <th>Address</th>
+      <th>Actions</th>
+    </tr>
+  `;
+
+  data
+    .filter(p => p.name.toLowerCase().includes(searchValue))
+    .forEach(party => {
+
+      table.innerHTML += `
+        <tr>
+          <td>${party.name}</td>
+          <td>${party.mobile || ""}</td>
+          <td>${party.address || ""}</td>
+          <td>
+            <button onclick="editParty('${party.id}','${party.name}','${party.mobile}','${party.address}')">Edit</button>
+            <button onclick="deleteParty('${party.id}')">Delete</button>
+          </td>
+        </tr>
+      `;
+    });
+}
+
+/* SAVE PARTY */
+async function saveParty() {
+
+  const id = document.getElementById("partyId").value;
+  const name = document.getElementById("partyName").value;
+  const mobile = document.getElementById("partyMobile").value;
+  const address = document.getElementById("partyAddress").value;
+
+  if (!name) {
+    alert("Party name required");
+    return;
+  }
+
+  if (id) {
+    await client.from("parties")
+      .update({
+        name: name,
+        mobile: mobile,
+        address: address
+      })
+      .eq("id", id);
+  } else {
+    await client.from("parties")
+      .insert([{
+        name: name,
+        mobile: mobile,
+        address: address
+      }]);
+  }
+
+  document.getElementById("partyId").value = "";
+  document.getElementById("partyName").value = "";
+  document.getElementById("partyMobile").value = "";
+  document.getElementById("partyAddress").value = "";
+
+  loadParties();
+}
+
+/* EDIT */
+function editParty(id, name, mobile, address) {
+  document.getElementById("partyId").value = id;
+  document.getElementById("partyName").value = name;
+  document.getElementById("partyMobile").value = mobile;
+  document.getElementById("partyAddress").value = address;
+}
+
+/* DELETE */
+async function deleteParty(id) {
+  if (confirm("Delete this party?")) {
+    await client.from("parties").delete().eq("id", id);
+    loadParties();
+  }
+}
+
+loadParties();
+checkAccess(['admin']);
+</script>
+
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Stock Management - Adiraj Enterprises</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover {
+  background:#1a2a40;
+}
+
+/* CONTENT */
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+input {
+  padding:8px;
+  margin:5px;
+}
+
+button {
+  padding:8px 15px;
+  background:#1a2a40;
+  color:white;
+  border:none;
+  cursor:pointer;
+  margin:5px;
+}
+
+button:hover {
+  background:#243b55;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+
+.low-stock {
+  background-color:#ffe5e5;
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+</div>
+
+<div class="content">
+
+<h2>Stock Management</h2>
+
+<h3>Add / Update Item</h3>
+
+<input type="hidden" id="itemId">
+
+<input type="text" id="itemName" placeholder="Item Name">
+<input type="number" id="pcsPerBox" placeholder="Pieces per Box">
+<input type="number" id="itemRate" placeholder="Default Rate">
+<input type="number" id="addBoxes" placeholder="Add Boxes">
+<input type="number" id="addPieces" placeholder="Add Extra Pieces">
+
+<button onclick="saveItem()">Save</button>
+
+<hr>
+
+<h3>Item List</h3>
+
+<table id="stockTable">
+  <tr>
+    <th>Item</th>
+    <th>Pcs/Box</th>
+    <th>Stock (Pieces)</th>
+    <th>Stock (Boxes)</th>
+    <th>Rate</th>
+    <th>Actions</th>
+  </tr>
+</table>
+
+</div>
+
+<script>
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+
+async function checkAccess(allowedRoles) {
+
+  const { data: { user } } = await client.auth.getUser();
+
+  if (!user) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  const { data, error } = await client
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user.id)
+    .single();
+
+  if (error || !allowedRoles.includes(data.role)) {
+    alert("Access Denied");
+    window.location.href = "dashboard.html";
+  }
+  async function logout() {
+    await client.auth.signOut();
+    window.location.href = "login.html";
+  }
+}
+/* LOAD STOCK */
+async function loadStock() {
+
+  const { data } = await client
+    .from("items")
+    .select("*")
+    .order("name", { ascending: true });
+
+  const table = document.getElementById("stockTable");
+  table.innerHTML = `
+    <tr>
+      <th>Item</th>
+      <th>Pcs/Box</th>
+      <th>Stock (Pieces)</th>
+      <th>Stock (Boxes)</th>
+      <th>Rate</th>
+      <th>Actions</th>
+    </tr>
+  `;
+
+  data.forEach(item => {
+
+    const stockBoxes = (item.stock_pieces / item.pcs_per_box).toFixed(2);
+
+    let rowClass = "";
+    if (item.stock_pieces < (2 * item.pcs_per_box)) {
+      rowClass = "low-stock";
+    }
+
+    table.innerHTML += `
+      <tr class="${rowClass}">
+        <td>${item.name}</td>
+        <td>${item.pcs_per_box}</td>
+        <td>${item.stock_pieces}</td>
+        <td>${stockBoxes}</td>
+        <td>${item.rate}</td>
+        <td>
+          <button onclick="editItem('${item.id}','${item.name}',${item.pcs_per_box},${item.rate})">Edit</button>
+          <button onclick="deleteItem('${item.id}')">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+/* SAVE ITEM */
+async function saveItem() {
+
+  const id = document.getElementById("itemId").value;
+  const name = document.getElementById("itemName").value;
+  const pcsPerBox = Number(document.getElementById("pcsPerBox").value);
+  const rate = Number(document.getElementById("itemRate").value);
+  const addBoxes = Number(document.getElementById("addBoxes").value) || 0;
+  const addPieces = Number(document.getElementById("addPieces").value) || 0;
+
+  const addedStock = (addBoxes * pcsPerBox) + addPieces;
+
+  if (id) {
+    await client.from("items")
+      .update({
+        name: name,
+        pcs_per_box: pcsPerBox,
+        rate: rate,
+        stock_pieces: addedStock
+      })
+      .eq("id", id);
+  } else {
+    await client.from("items")
+      .insert([{
+        name: name,
+        pcs_per_box: pcsPerBox,
+        rate: rate,
+        stock_pieces: addedStock
+      }]);
+  }
+
+  document.getElementById("itemId").value = "";
+  document.getElementById("itemName").value = "";
+  document.getElementById("pcsPerBox").value = "";
+  document.getElementById("itemRate").value = "";
+  document.getElementById("addBoxes").value = "";
+  document.getElementById("addPieces").value = "";
+
+  loadStock();
+}
+
+/* EDIT */
+function editItem(id, name, pcs, rate) {
+  document.getElementById("itemId").value = id;
+  document.getElementById("itemName").value = name;
+  document.getElementById("pcsPerBox").value = pcs;
+  document.getElementById("itemRate").value = rate;
+}
+
+/* DELETE */
+async function deleteItem(id) {
+  if (confirm("Delete this item?")) {
+    await client.from("items").delete().eq("id", id);
+    loadStock();
+  }
+}
+
+loadStock();
+checkAccess(['admin']);
+</script>
+
+</body>
+</html>

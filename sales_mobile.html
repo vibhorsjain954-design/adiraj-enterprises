@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Sales Mobile - Adiraj Enterprises</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial;
+  background:#0f2027;
+  color:white;
+  padding:15px;
+}
+
+h2 {
+  text-align:center;
+}
+
+.card {
+  background:#1a2a40;
+  padding:15px;
+  border-radius:10px;
+  margin-bottom:15px;
+}
+
+select, input {
+  width:100%;
+  padding:12px;
+  margin:8px 0;
+  font-size:16px;
+  border:none;
+  border-radius:6px;
+}
+
+button {
+  width:100%;
+  padding:15px;
+  font-size:18px;
+  background:#243b55;
+  color:white;
+  border:none;
+  border-radius:6px;
+  margin-top:10px;
+}
+
+button:hover {
+  background:#2c5364;
+}
+
+.total-box {
+  font-size:20px;
+  text-align:center;
+  margin-top:15px;
+}
+
+.small {
+  font-size:13px;
+  opacity:0.8;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📱 Sales Quick Billing</h2>
+
+<div class="card">
+
+<select id="partySelect"></select>
+<select id="itemSelect"></select>
+
+<input type="number" id="qty" placeholder="Total Pieces">
+<input type="number" id="rate" placeholder="Rate">
+
+<div class="small">
+Stock: <span id="stockDisplay">0</span> pcs
+</div>
+
+<button onclick="addItem()">Add Item</button>
+
+</div>
+
+<div class="card">
+<div id="cart"></div>
+<div class="total-box">
+Total: ₹ <span id="grandTotal">0</span>
+</div>
+<button onclick="saveInvoice()">Save Invoice</button>
+</div>
+
+<script>
+
+const client = supabase.createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+);
+
+let cartItems = [];
+let grandTotal = 0;
+
+/* Session Protection */
+async function checkSession() {
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) window.location.href = "login.html";
+}
+
+/* Load Data */
+async function loadData() {
+
+  const { data: parties } = await client.from("parties").select("*").order("name");
+  const { data: items } = await client.from("items").select("*").order("name");
+
+  partySelect.innerHTML = "";
+  parties.forEach(p => {
+    partySelect.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+  });
+
+  itemSelect.innerHTML = "";
+  items.forEach(i => {
+    itemSelect.innerHTML += `
+      <option value="${i.id}"
+        data-rate="${i.rate}"
+        data-stock="${i.stock_pieces}">
+        ${i.name}
+      </option>`;
+  });
+
+  updateItemDetails();
+}
+
+/* Auto Rate + Stock */
+function updateItemDetails() {
+
+  const selected = itemSelect.options[itemSelect.selectedIndex];
+  rate.value = selected.dataset.rate;
+  stockDisplay.innerText = selected.dataset.stock;
+}
+
+itemSelect.addEventListener("change", updateItemDetails);
+
+/* Add Item */
+function addItem() {
+
+  const itemName = itemSelect.options[itemSelect.selectedIndex].text;
+  const itemId = itemSelect.value;
+  const qtyVal = Number(qty.value);
+  const rateVal = Number(rate.value);
+
+  if (!qtyVal || !rateVal) return;
+
+  const amount = qtyVal * rateVal;
+  grandTotal += amount;
+
+  cartItems.push({
+    item_id: itemId,
+    quantity_pieces: qtyVal,
+    rate: rateVal,
+    amount: amount
+  });
+
+  cart.innerHTML += `
+    ${itemName} - ${qtyVal} pcs - ₹${amount}<br>
+  `;
+
+  grandTotalDisplay();
+  qty.value = "";
+}
+
+/* Update Total */
+function grandTotalDisplay() {
+  document.getElementById("grandTotal").innerText = grandTotal;
+}
+
+/* Save Invoice */
+async function saveInvoice() {
+
+  if (cartItems.length === 0) return;
+
+  const partyId = partySelect.value;
+  const today = new Date().toLocaleDateString('en-IN');
+
+  const { data: setting } = await client
+    .from("settings")
+    .select("*")
+    .eq("id", 1)
+    .single();
+
+  let newCounter = setting.invoice_counter + 1;
+  const invoiceNo = "AD" + String(newCounter).padStart(5, "0");
+
+  await client.from("settings")
+    .update({ invoice_counter: newCounter })
+    .eq("id", 1);
+
+  const { data: invoice } = await client
+    .from("invoices")
+    .insert([{
+      invoice_no: invoiceNo,
+      party_id: partyId,
+      invoice_date: today,
+      total: grandTotal,
+      balance: grandTotal
+    }])
+    .select()
+    .single();
+
+  for (let item of cartItems) {
+
+    await client.from("invoice_items").insert([{
+      invoice_id: invoice.id,
+      item_id: item.item_id,
+      quantity_pieces: item.quantity_pieces,
+      rate: item.rate,
+      amount: item.amount
+    }]);
+
+    await client.rpc("reduce_stock", {
+      itemid: item.item_id,
+      qty: item.quantity_pieces
+    });
+  }
+
+  alert("Invoice Saved: " + invoiceNo);
+  location.reload();
+}
+
+checkSession();
+loadData();
+
+</script>
+
+</body>
+</html>
