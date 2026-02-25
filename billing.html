@@ -7,31 +7,21 @@
 <style>
 body {
   margin:0;
-  font-family: Arial, sans-serif;
+  font-family: Arial;
   background:#f4f6f9;
 }
 
-/* SIDEBAR */
 .sidebar {
   width:250px;
   height:100vh;
   background:#0f2027;
   position:fixed;
-  left:0;
-  top:0;
   padding-top:20px;
-  color:white;
-}
-
-.sidebar img {
-  width:180px;
-  display:block;
-  margin:0 auto 30px auto;
 }
 
 .sidebar a {
   display:block;
-  padding:15px 25px;
+  padding:15px;
   color:white;
   text-decoration:none;
 }
@@ -40,13 +30,12 @@ body {
   background:#1a2a40;
 }
 
-/* CONTENT */
 .content {
   margin-left:250px;
-  padding:40px;
+  padding:30px;
 }
 
-select, input {
+input, select {
   padding:8px;
   margin:5px;
 }
@@ -57,17 +46,13 @@ button {
   color:white;
   border:none;
   cursor:pointer;
-  margin:5px;
-}
-
-button:hover {
-  background:#243b55;
 }
 
 table {
   width:100%;
-  border-collapse: collapse;
+  border-collapse:collapse;
   margin-top:20px;
+  background:white;
 }
 
 table, th, td {
@@ -75,278 +60,234 @@ table, th, td {
   padding:8px;
   text-align:center;
 }
-
-/* PRINT STYLE */
-@media print {
-  .sidebar, button, select, input, h2 {
-    display:none !important;
-  }
-
-  .content {
-    margin-left:0;
-  }
-
-  #printArea {
-    display:block !important;
-  }
-
-  table, th, td {
-    border:1px solid black;
-  }
-}
 </style>
 </head>
 
 <body>
 
 <div class="sidebar">
-  <img src="assets/logo.png">
-  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="dashboard.html">Dashboard</a>
+  <a href="billing.html">Billing</a>
+  <a href="stock.html">Stock</a>
 </div>
 
 <div class="content">
 
-<h2>Create Invoice</h2>
+<h2>New Invoice</h2>
 
-<label>Party:</label>
+<label>Invoice No:</label>
+<input type="text" id="invoiceNo" readonly>
+
+<label>Date:</label>
+<input type="text" id="displayDate" readonly>
+
+<br><br>
+
 <select id="partySelect"></select>
 
-<hr>
-
-<label>Item:</label>
-<select id="itemSelect"></select>
-<input type="number" id="boxes" placeholder="Boxes">
-<input type="number" id="pieces" placeholder="Extra Pieces">
-<input type="number" id="rate" placeholder="Rate">
-<button onclick="addItem()">Add</button>
+<br><br>
 
 <table id="billTable">
-  <tr>
-    <th>Item</th>
-    <th>Total Pieces</th>
-    <th>Rate</th>
-    <th>Amount</th>
-  </tr>
+<tr>
+  <th>Item</th>
+  <th>Qty</th>
+  <th>Rate</th>
+  <th>Total</th>
+</tr>
 </table>
+
+<button onclick="addRow()">Add Item</button>
 
 <h3>Total: ₹ <span id="grandTotal">0</span></h3>
 
-<button onclick="saveInvoice()">Save Invoice</button>
-
-<!-- PRINT AREA -->
-<div id="printArea" style="display:none;">
-  <div style="text-align:center;">
-    <img src="assets/logo.png" style="height:80px;"><br>
-    <strong>Adiraj Enterprises</strong><br>
-    Owner: Sachin Vijaychand Jain<br>
-    Mob: 8655599968 / 9303102823
-    <hr>
-  </div>
-
-  <div style="display:flex; justify-content:space-between;">
-    <div>Party: <span id="printParty"></span></div>
-    <div>
-      Invoice No: <span id="printInvoiceNo"></span><br>
-      Date: <span id="printDate"></span>
-    </div>
-  </div>
-</div>
+<button onclick="saveInvoice()">Save</button>
+<button onclick="window.print()">Print</button>
+<button onclick="downloadPDF()">Download PDF</button>
 
 </div>
 
 <script>
-const client = supabase.createClient(
+const { createClient } = supabase;
+
+const client = createClient(
   "https://tcgspigynbhhrlgtfnux.supabase.co",
-  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
+  "sb_publishable_YOUR_KEY_HERE"
 );
 
-async function checkAccess(allowedRoles) {
+/* =========================
+   AUTO DATE
+========================= */
+function setTodayDate() {
+  const today = new Date();
 
-  const { data: { user } } = await client.auth.getUser();
+  const display =
+    String(today.getDate()).padStart(2,'0') + "-" +
+    String(today.getMonth()+1).padStart(2,'0') + "-" +
+    today.getFullYear();
 
-  if (!user) {
-    window.location.href = "login.html";
-    return;
+  document.getElementById("displayDate").value = display;
+}
+
+function getDBDate() {
+  const today = new Date();
+  return today.toISOString().split("T")[0];
+}
+
+/* =========================
+   FINANCIAL YEAR
+========================= */
+function getFinancialYear() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+
+  if (month >= 8) {
+    return year;
+  } else {
+    return year - 1;
+  }
+}
+
+/* =========================
+   AUTO INVOICE NUMBER
+========================= */
+async function generateInvoiceNumber() {
+
+  const fy = getFinancialYear();
+
+  const startDate = fy + "-08-01";
+  const endDate = (fy+1) + "-07-31";
+
+  const { data } = await client
+    .from("invoices")
+    .select("invoice_no")
+    .gte("date", startDate)
+    .lte("date", endDate)
+    .order("invoice_no", { ascending:false })
+    .limit(1);
+
+  let nextNumber = 1;
+
+  if (data.length > 0) {
+    const last = data[0].invoice_no;
+    const num = parseInt(last.replace("AD",""));
+    nextNumber = num + 1;
   }
 
-  const { data, error } = await client
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+  const formatted = "AD" + String(nextNumber).padStart(5,'0');
 
-  if (error || !allowedRoles.includes(data.role)) {
-    alert("Access Denied");
-    window.location.href = "dashboard.html";
-  }
-async function logout() {
-  await client.auth.signOut();
-  window.location.href = "login.html";
+  document.getElementById("invoiceNo").value = formatted;
 }
-}
-let cart = [];
-let grandTotal = 0;
 
-/* LOAD PARTIES */
+/* =========================
+   LOAD PARTIES
+========================= */
 async function loadParties() {
   const { data } = await client
     .from("parties")
     .select("*")
-    .order("name", { ascending: true });
+    .order("name", { ascending:true });
 
   const select = document.getElementById("partySelect");
-  select.innerHTML = "";
+
   data.forEach(p => {
-    select.innerHTML += `<option value="${p.id}">${p.name}</option>`;
+    const option = document.createElement("option");
+    option.value = p.id;
+    option.textContent = p.name;
+    select.appendChild(option);
   });
 }
 
-/* LOAD ITEMS */
-async function loadItems() {
-  const { data } = await client
-    .from("items")
-    .select("*")
-    .order("name", { ascending: true });
+/* =========================
+   ADD ROW
+========================= */
+function addRow() {
 
-  const select = document.getElementById("itemSelect");
-  select.innerHTML = "";
+  const table = document.getElementById("billTable");
 
-  data.forEach(i => {
-    let lowStock = "";
-    if (i.stock_pieces < (2 * i.pcs_per_box)) {
-      lowStock = " (LOW STOCK)";
-    }
+  const row = table.insertRow();
 
-    select.innerHTML += `
-      <option value="${i.id}"
-        data-rate="${i.rate}"
-        data-box="${i.pcs_per_box}">
-        ${i.name}${lowStock}
-      </option>`;
-  });
+  row.innerHTML = `
+    <td><input type="text"></td>
+    <td><input type="number" oninput="calculateTotal()"></td>
+    <td><input type="number" oninput="calculateTotal()"></td>
+    <td class="rowTotal">0</td>
+  `;
 }
 
-/* PARTY-WISE RATE */
-document.getElementById("itemSelect").addEventListener("change", async function() {
+function calculateTotal() {
 
-  const itemId = this.value;
-  const partyId = document.getElementById("partySelect").value;
+  const rows = document.querySelectorAll("#billTable tr");
+  let grand = 0;
 
-  const { data } = await client
-    .from("party_item_rates")
-    .select("*")
-    .eq("party_id", partyId)
-    .eq("item_id", itemId)
-    .single();
+  rows.forEach((row, index) => {
+    if(index===0) return;
 
-  if (data) {
-    document.getElementById("rate").value = data.special_rate;
-  } else {
-    const selected = this.options[this.selectedIndex];
-    document.getElementById("rate").value = selected.dataset.rate;
-  }
-});
+    const qty = row.cells[1].children[0].value || 0;
+    const rate = row.cells[2].children[0].value || 0;
 
-/* ADD ITEM */
-function addItem() {
+    const total = qty * rate;
+    row.cells[3].innerText = total;
 
-  const itemSelect = document.getElementById("itemSelect");
-  const selected = itemSelect.options[itemSelect.selectedIndex];
-
-  const boxes = Number(document.getElementById("boxes").value) || 0;
-  const pieces = Number(document.getElementById("pieces").value) || 0;
-  const rate = Number(document.getElementById("rate").value);
-
-  const pcsPerBox = Number(selected.dataset.box);
-  const totalPieces = (boxes * pcsPerBox) + pieces;
-  const amount = totalPieces * rate;
-
-  grandTotal += amount;
-
-  cart.push({
-    item_id: itemSelect.value,
-    quantity_pieces: totalPieces,
-    rate: rate,
-    amount: amount
+    grand += total;
   });
 
-  document.getElementById("billTable").innerHTML += `
-    <tr>
-      <td>${selected.text}</td>
-      <td>${totalPieces}</td>
-      <td>${rate}</td>
-      <td>${amount}</td>
-    </tr>`;
-
-  document.getElementById("grandTotal").innerText = grandTotal;
+  document.getElementById("grandTotal").innerText = grand;
 }
 
-/* SAVE INVOICE */
+/* =========================
+   SAVE INVOICE
+========================= */
 async function saveInvoice() {
 
+  const invoiceNo = document.getElementById("invoiceNo").value;
   const partyId = document.getElementById("partySelect").value;
-  const today = new Date().toLocaleDateString('en-IN');
+  const totalAmount = document.getElementById("grandTotal").innerText;
+  const date = getDBDate();
 
-  const { data: setting } = await client
-    .from("settings")
-    .select("*")
-    .eq("id", 1)
-    .single();
+  if (!partyId) {
+    alert("Select party");
+    return;
+  }
 
-  let newCounter = setting.invoice_counter + 1;
-  const invoiceNo = "AD" + String(newCounter).padStart(5, "0");
-
-  await client.from("settings")
-    .update({ invoice_counter: newCounter })
-    .eq("id", 1);
-
-  const { data: invoice } = await client
+  const { data, error } = await client
     .from("invoices")
     .insert([{
       invoice_no: invoiceNo,
       party_id: partyId,
-      invoice_date: today,
-      total: grandTotal,
-      balance: grandTotal
-    }])
-    .select()
-    .single();
-
-  for (let item of cart) {
-
-    await client.from("invoice_items").insert([{
-      invoice_id: invoice.id,
-      item_id: item.item_id,
-      quantity_pieces: item.quantity_pieces,
-      rate: item.rate,
-      amount: item.amount
+      total_amount: totalAmount,
+      date: date
     }]);
 
-    await client.rpc("reduce_stock", {
-      itemid: item.item_id,
-      qty: item.quantity_pieces
-    });
+  if (error) {
+    alert("Error saving invoice");
+    return;
   }
 
-  /* CLOUD BACKUP */
-  await client.storage
-    .from('invoices')
-    .upload(`${invoiceNo}.json`,
-      new Blob([JSON.stringify(cart)], { type: "application/json" }),
-      { upsert: true }
-    );
+  // Update party balance
+  await client.rpc('increment_party_balance', {
+    party_id_input: partyId,
+    amount_input: totalAmount
+  });
 
-  document.getElementById("printInvoiceNo").innerText = invoiceNo;
-  document.getElementById("printDate").innerText = today;
-  document.getElementById("printParty").innerText =
-    document.getElementById("partySelect").selectedOptions[0].text;
+  alert("Invoice Saved Successfully!");
 
-  setTimeout(() => window.print(), 500);
+  location.reload();
 }
 
+/* =========================
+   PDF EXPORT
+========================= */
+function downloadPDF() {
+  window.print();
+}
+
+/* =========================
+   INIT
+========================= */
+setTodayDate();
+generateInvoiceNumber();
 loadParties();
-loadItems();
-checkAccess(['admin','staff']);
 </script>
 
 </body>
