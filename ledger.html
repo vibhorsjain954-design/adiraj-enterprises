@@ -1,0 +1,286 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Ledger - Adiraj Enterprises</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+}
+
+/* SIDEBAR */
+.sidebar {
+  width:250px;
+  height:100vh;
+  background:#0f2027;
+  position:fixed;
+  left:0;
+  top:0;
+  padding-top:20px;
+  color:white;
+}
+
+.sidebar img {
+  width:180px;
+  display:block;
+  margin:0 auto 30px auto;
+}
+
+.sidebar a {
+  display:block;
+  padding:15px 25px;
+  color:white;
+  text-decoration:none;
+}
+
+.sidebar a:hover,
+.sidebar a.active {
+  background:#1a2a40;
+}
+
+/* CONTENT */
+.content {
+  margin-left:250px;
+  padding:40px;
+}
+
+select, button {
+  padding:8px;
+  margin:5px;
+}
+
+table {
+  width:100%;
+  border-collapse: collapse;
+  margin-top:20px;
+  background:white;
+}
+
+table, th, td {
+  border:1px solid #ccc;
+  padding:8px;
+  text-align:center;
+}
+
+.warning {
+  color:red;
+  font-weight:bold;
+  margin-top:10px;
+}
+
+/* Print Styling */
+@media print {
+  .sidebar, select, button {
+    display:none;
+  }
+  .content {
+    margin:0;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+  <img src="assets/logo.png">
+  <a href="dashboard.html">🏠 Dashboard</a>
+  <a href="billing.html">📄 Billing</a>
+  <a href="stock.html">📦 Stock</a>
+  <a href="payments.html">💰 Payments</a>
+  <a href="parties.html">👥 Parties</a>
+  <a href="history.html">🧾 Invoice History</a>
+  <a href="summary.html">📊 Party Summary</a>
+  <a href="ledger.html" class="active">📑 Ledger</a>
+</div>
+
+<div class="content">
+
+<h2>Party Ledger</h2>
+
+<select id="partySelect" onchange="loadLedger()">
+  <option value="">Select Party</option>
+</select>
+
+<button onclick="window.print()">🖨 Print</button>
+<button onclick="downloadPDF()">📄 Export PDF</button>
+
+<p id="overdueWarning" class="warning"></p>
+
+<table id="ledgerTable">
+  <tr>
+    <th>Date</th>
+    <th>Invoice No</th>
+    <th>Debit (Sale)</th>
+    <th>Credit (Payment)</th>
+    <th>Balance</th>
+  </tr>
+</table>
+
+</div>
+
+<script>
+const { createClient } = supabase;
+
+const client = createClient(
+  "https://tcgspigynbhhrlgtfnux.supabase.co",
+  "sb_publishable_YOUR_KEY_HERE"
+);
+
+/* =========================
+   Load Parties
+========================= */
+async function loadParties() {
+
+  const { data } = await client
+    .from("parties")
+    .select("*")
+    .order("name", { ascending:true });
+
+  const select = document.getElementById("partySelect");
+
+  data.forEach(party => {
+    const option = document.createElement("option");
+    option.value = party.id;
+    option.textContent = party.name;
+    select.appendChild(option);
+  });
+}
+
+/* =========================
+   Load Ledger
+========================= */
+async function loadLedger() {
+
+  const partyId = document.getElementById("partySelect").value;
+  if (!partyId) return;
+
+  const table = document.getElementById("ledgerTable");
+
+  table.innerHTML = `
+    <tr>
+      <th>Date</th>
+      <th>Invoice No</th>
+      <th>Debit (Sale)</th>
+      <th>Credit (Payment)</th>
+      <th>Balance</th>
+    </tr>
+  `;
+
+  let transactions = [];
+  let hasOverdue = false;
+
+  // Fetch invoices
+  const { data: invoices } = await client
+    .from("invoices")
+    .select("*")
+    .eq("party_id", partyId);
+
+  invoices.forEach(inv => {
+    transactions.push({
+      date: inv.date,
+      invoice: inv.invoice_no,
+      debit: inv.total_amount,
+      credit: 0
+    });
+  });
+
+  // Fetch payments
+  const { data: payments } = await client
+    .from("payments")
+    .select("*")
+    .eq("party_id", partyId);
+
+  payments.forEach(pay => {
+    transactions.push({
+      date: pay.date,
+      invoice: "-",
+      debit: 0,
+      credit: pay.amount
+    });
+  });
+
+  // Sort by date
+  transactions.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+  let runningBalance = 0;
+
+  transactions.forEach(t => {
+
+    runningBalance += (Number(t.debit) - Number(t.credit));
+
+    const today = new Date();
+    const invoiceDate = new Date(t.date);
+    const diffDays = (today - invoiceDate) / (1000 * 60 * 60 * 24);
+
+    let rowColor = "";
+    let balanceStyle = "";
+
+    // Debit row
+    if (t.debit > 0) {
+      rowColor = "background:#fff5f5;";
+    }
+
+    // Credit row
+    if (t.credit > 0) {
+      rowColor = "background:#f0fff4;";
+    }
+
+    // 🔴 Overdue Condition
+    if (t.debit > 0 && diffDays > 7 && runningBalance > 0) {
+      rowColor = "background:#ffcccc;";
+      balanceStyle = "color:red;font-weight:bold;";
+      hasOverdue = true;
+    } else {
+      balanceStyle = runningBalance > 0 ? "color:red;" : "color:green;";
+    }
+
+    table.innerHTML += `
+      <tr style="${rowColor}">
+        <td>${t.date}</td>
+        <td>${t.invoice}</td>
+        <td>${t.debit || "-"}</td>
+        <td>${t.credit || "-"}</td>
+        <td style="${balanceStyle}">
+          ${runningBalance}
+        </td>
+      </tr>
+    `;
+  });
+
+  // Show overdue message
+  if (hasOverdue) {
+    document.getElementById("overdueWarning").innerText =
+      "⚠ This party has invoice(s) overdue for more than 7 days.";
+  } else {
+    document.getElementById("overdueWarning").innerText = "";
+  }
+}
+
+/* =========================
+   PDF Export
+========================= */
+function downloadPDF() {
+
+  const partyName =
+    document.getElementById("partySelect")
+    .options[document.getElementById("partySelect").selectedIndex].text;
+
+  const originalTitle = document.title;
+
+  document.title = "Ledger-" + partyName;
+
+  window.print();
+
+  document.title = originalTitle;
+}
+
+loadParties();
+</script>
+
+</body>
+</html>
