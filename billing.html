@@ -5,14 +5,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-body {
-  margin:0;
-  font-family: Arial;
-  background:#f4f6f9;
-}
+body { margin:0; font-family:Arial; background:#f4f6f9; }
 
 .sidebar {
-  width:250px;
+  width:220px;
   height:100vh;
   background:#0f2027;
   position:fixed;
@@ -21,24 +17,16 @@ body {
 
 .sidebar a {
   display:block;
-  padding:15px;
+  padding:12px;
   color:white;
   text-decoration:none;
 }
 
-.sidebar a:hover {
-  background:#1a2a40;
-}
+.sidebar a:hover { background:#1a2a40; }
 
-.content {
-  margin-left:250px;
-  padding:30px;
-}
+.content { margin-left:220px; padding:20px; }
 
-input, select {
-  padding:8px;
-  margin:5px;
-}
+input, select { padding:6px; margin:5px; }
 
 button {
   padding:8px 15px;
@@ -46,19 +34,26 @@ button {
   color:white;
   border:none;
   cursor:pointer;
+  margin:5px;
 }
 
 table {
   width:100%;
   border-collapse:collapse;
-  margin-top:20px;
+  margin-top:15px;
   background:white;
 }
 
 table, th, td {
   border:1px solid #ccc;
-  padding:8px;
+  padding:6px;
   text-align:center;
+}
+
+@media print {
+  body * { visibility:hidden; }
+  #printSection, #printSection * { visibility:visible; }
+  #printSection { position:absolute; left:0; top:0; }
 }
 </style>
 </head>
@@ -81,16 +76,17 @@ table, th, td {
 <label>Date:</label>
 <input type="text" id="displayDate" readonly>
 
-<br><br>
+<br>
 
-<select id="partySelect"></select>
-
-<br><br>
+<select id="partySelect">
+  <option value="">Select Party</option>
+</select>
 
 <table id="billTable">
 <tr>
   <th>Item</th>
-  <th>Qty</th>
+  <th>Box</th>
+  <th>Pcs</th>
   <th>Rate</th>
   <th>Total</th>
 </tr>
@@ -101,9 +97,39 @@ table, th, td {
 <h3>Total: ₹ <span id="grandTotal">0</span></h3>
 
 <button onclick="saveInvoice()">Save</button>
-<button onclick="window.print()">Print</button>
-<button onclick="downloadPDF()">Download PDF</button>
+<button onclick="printInvoice()">Print</button>
 
+</div>
+
+<div id="printSection" style="display:none; width:350px; padding:15px; font-size:12px;">
+  <div style="text-align:center;">
+    <img src="assets/logo.png" width="120"><br>
+    <b>Adiraj Enterprises</b><br>
+    Mob: 8655599968, 9309102823
+    <hr style="border:1px solid black;">
+  </div>
+
+  <b>Invoice No:</b> <span id="pInvoiceNo"></span><br>
+  <b>Date:</b> <span id="pDate"></span><br>
+  <b>Party:</b> <span id="pParty"></span>
+  <hr style="border:1px solid black;">
+
+  <table width="100%">
+    <thead>
+      <tr>
+        <th align="left">Item</th>
+        <th align="center">Box</th>
+        <th align="center">Pcs</th>
+        <th align="right">Amt</th>
+      </tr>
+    </thead>
+    <tbody id="pItems"></tbody>
+  </table>
+
+  <hr style="border:1px solid black;">
+  <div style="text-align:right;">
+    <b>Total: ₹ <span id="pTotal"></span></b>
+  </div>
 </div>
 
 <script>
@@ -111,180 +137,130 @@ const { createClient } = supabase;
 
 const client = createClient(
   "https://tcgspigynbhhrlgtfnux.supabase.co",
-  "sb_publishable_YOUR_KEY_HERE"
+  "PASTE_YOUR_REAL_ANON_PUBLIC_KEY_HERE"
 );
 
-/* =========================
-   AUTO DATE
-========================= */
-function setTodayDate() {
-  const today = new Date();
-
-  const display =
-    String(today.getDate()).padStart(2,'0') + "-" +
-    String(today.getMonth()+1).padStart(2,'0') + "-" +
-    today.getFullYear();
-
-  document.getElementById("displayDate").value = display;
+/* DATE */
+function setTodayDate(){
+  const d=new Date();
+  document.getElementById("displayDate").value =
+    String(d.getDate()).padStart(2,'0')+"-"+
+    String(d.getMonth()+1).padStart(2,'0')+"-"+
+    d.getFullYear();
 }
+function getDBDate(){ return new Date().toISOString().split("T")[0]; }
 
-function getDBDate() {
-  const today = new Date();
-  return today.toISOString().split("T")[0];
-}
-
-/* =========================
-   FINANCIAL YEAR
-========================= */
-function getFinancialYear() {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1;
-
-  if (month >= 8) {
-    return year;
-  } else {
-    return year - 1;
-  }
-}
-
-/* =========================
-   AUTO INVOICE NUMBER
-========================= */
-async function generateInvoiceNumber() {
-
-  const fy = getFinancialYear();
-
-  const startDate = fy + "-08-01";
-  const endDate = (fy+1) + "-07-31";
-
-  const { data } = await client
+/* INVOICE NUMBER */
+async function generateInvoiceNumber(){
+  const {data}=await client
     .from("invoices")
     .select("invoice_no")
-    .gte("date", startDate)
-    .lte("date", endDate)
-    .order("invoice_no", { ascending:false })
+    .order("invoice_no",{ascending:false})
     .limit(1);
 
-  let nextNumber = 1;
-
-  if (data.length > 0) {
-    const last = data[0].invoice_no;
-    const num = parseInt(last.replace("AD",""));
-    nextNumber = num + 1;
+  let next=1;
+  if(data && data.length>0){
+    next=parseInt(data[0].invoice_no.replace("AD",""))+1;
   }
-
-  const formatted = "AD" + String(nextNumber).padStart(5,'0');
-
-  document.getElementById("invoiceNo").value = formatted;
+  document.getElementById("invoiceNo").value=
+    "AD"+String(next).padStart(5,'0');
 }
 
-/* =========================
-   LOAD PARTIES
-========================= */
-async function loadParties() {
-  const { data } = await client
-    .from("parties")
-    .select("*")
-    .order("name", { ascending:true });
-
-  const select = document.getElementById("partySelect");
-
-  data.forEach(p => {
-    const option = document.createElement("option");
-    option.value = p.id;
-    option.textContent = p.name;
-    select.appendChild(option);
+/* LOAD PARTIES */
+async function loadParties(){
+  const {data,error}=await client.from("parties").select("*").order("name");
+  if(error){ alert("Error loading parties"); return; }
+  data.forEach(p=>{
+    const opt=document.createElement("option");
+    opt.value=p.id;
+    opt.textContent=p.name;
+    document.getElementById("partySelect").appendChild(opt);
   });
 }
 
-/* =========================
-   ADD ROW
-========================= */
-function addRow() {
+/* ADD ROW */
+async function addRow(){
+  const {data:items}=await client.from("items").select("*").order("name");
+  const row=document.getElementById("billTable").insertRow();
 
-  const table = document.getElementById("billTable");
+  let options='<option value="">Select</option>';
+  items.forEach(i=>{
+    options+=`<option value="${i.id}" data-rate="${i.rate}" data-pcs="${i.pcs_per_box}">${i.name}</option>`;
+  });
 
-  const row = table.insertRow();
-
-  row.innerHTML = `
-    <td><input type="text"></td>
-    <td><input type="number" oninput="calculateTotal()"></td>
-    <td><input type="number" oninput="calculateTotal()"></td>
-    <td class="rowTotal">0</td>
+  row.innerHTML=`
+    <td><select onchange="itemSelected(this)">${options}</select></td>
+    <td><input type="number" value="0" oninput="calculateTotal()"></td>
+    <td><input type="number" value="0" oninput="calculateTotal()"></td>
+    <td><input type="number" value="0" oninput="calculateTotal()"></td>
+    <td>0</td>
   `;
 }
 
-function calculateTotal() {
-
-  const rows = document.querySelectorAll("#billTable tr");
-  let grand = 0;
-
-  rows.forEach((row, index) => {
-    if(index===0) return;
-
-    const qty = row.cells[1].children[0].value || 0;
-    const rate = row.cells[2].children[0].value || 0;
-
-    const total = qty * rate;
-    row.cells[3].innerText = total;
-
-    grand += total;
-  });
-
-  document.getElementById("grandTotal").innerText = grand;
+/* RATE */
+function itemSelected(sel){
+  const rate=sel.options[sel.selectedIndex].dataset.rate || 0;
+  sel.closest("tr").cells[3].children[0].value=rate;
+  calculateTotal();
 }
 
-/* =========================
-   SAVE INVOICE
-========================= */
-async function saveInvoice() {
+/* TOTAL */
+function calculateTotal(){
+  let grand=0;
+  const rows=document.querySelectorAll("#billTable tr");
+  rows.forEach((r,i)=>{
+    if(i===0) return;
+    const box=+r.cells[1].children[0].value||0;
+    const pcs=+r.cells[2].children[0].value||0;
+    const rate=+r.cells[3].children[0].value||0;
+    const total=(box+pcs)*rate;
+    r.cells[4].innerText=total;
+    grand+=total;
+  });
+  document.getElementById("grandTotal").innerText=grand;
+}
 
-  const invoiceNo = document.getElementById("invoiceNo").value;
-  const partyId = document.getElementById("partySelect").value;
-  const totalAmount = document.getElementById("grandTotal").innerText;
-  const date = getDBDate();
+/* SAVE */
+async function saveInvoice(){
+  const party=document.getElementById("partySelect").value;
+  if(!party){ alert("Select party"); return; }
 
-  if (!partyId) {
-    alert("Select party");
-    return;
-  }
+  const rows=document.querySelectorAll("#billTable tr");
+  let totalAmount=+document.getElementById("grandTotal").innerText;
 
-  const { data, error } = await client
+  const {data:inv,error}=await client
     .from("invoices")
     .insert([{
-      invoice_no: invoiceNo,
-      party_id: partyId,
-      total_amount: totalAmount,
-      date: date
-    }]);
+      invoice_no:document.getElementById("invoiceNo").value,
+      party_id:party,
+      total_amount:totalAmount,
+      date:getDBDate()
+    }])
+    .select()
+    .single();
 
-  if (error) {
-    alert("Error saving invoice");
-    return;
-  }
+  if(error){ alert("Error saving invoice"); return; }
 
-  // Update party balance
-  await client.rpc('increment_party_balance', {
-    party_id_input: partyId,
-    amount_input: totalAmount
-  });
-
-  alert("Invoice Saved Successfully!");
-
+  alert("Invoice Saved!");
   location.reload();
 }
 
-/* =========================
-   PDF EXPORT
-========================= */
-function downloadPDF() {
+/* PRINT */
+function printInvoice(){
+  document.getElementById("pInvoiceNo").innerText=
+    document.getElementById("invoiceNo").value;
+  document.getElementById("pDate").innerText=
+    document.getElementById("displayDate").value;
+  document.getElementById("pTotal").innerText=
+    document.getElementById("grandTotal").innerText;
+
+  const partySel=document.getElementById("partySelect");
+  document.getElementById("pParty").innerText=
+    partySel.options[partySel.selectedIndex].text;
+
   window.print();
 }
 
-/* =========================
-   INIT
-========================= */
 setTodayDate();
 generateInvoiceNumber();
 loadParties();
