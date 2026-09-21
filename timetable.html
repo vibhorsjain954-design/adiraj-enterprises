@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Timetable & Attendance - Adiraj Enterprises</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --sidebar-bg: #0f2027;
+      --sidebar-hover: #1a2a40;
+      --sidebar-active: #1e3a5f;
+      --content-bg: #f4f6f9;
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --accent: #4da6ff;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--content-bg); color: var(--text-primary); display: flex; min-height: 100vh; }
+    
+    .sidebar { width: 240px; background: var(--sidebar-bg); color: white; display: flex; flex-direction: column; padding: 20px 0; position: fixed; height: 100vh; }
+    .sidebar-logo { text-align: center; padding: 0 20px 30px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px; }
+    .sidebar-logo img { max-width: 160px; height: auto; }
+    .sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; padding: 0 10px; }
+    .sidebar-nav a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #cbd5e1; text-decoration: none; border-radius: 6px; transition: all 0.2s; font-size: 14px; }
+    .sidebar-nav a:hover { background: var(--sidebar-hover); color: white; }
+    .sidebar-nav a.active { background: var(--sidebar-active); color: white; border-left: 3px solid var(--accent); }
+    .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .logout-btn { width: 100%; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+    
+    .main-content { margin-left: 240px; flex: 1; padding: 30px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--border-color); }
+    .page-title { font-size: 22px; font-weight: 700; }
+    
+    .card { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 24px; margin-bottom: 24px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border-color); }
+    .card-title { font-size: 18px; font-weight: 600; }
+    
+    .tabs { display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid var(--border-color); }
+    .tab { padding: 12px 24px; background: none; border: none; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-secondary); border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
+    .tab:hover { color: var(--text-primary); }
+    .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+    
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #0f2027; color: white; padding: 12px 16px; text-align: left; font-weight: 500; font-size: 13px; }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); }
+    tr:hover td { background: #f9fafb; }
+    
+    .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-primary { background: var(--success); color: white; }
+    .btn-primary:hover { background: #059669; }
+    .btn-warning { background: var(--warning); color: #111827; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .form-input, .form-select { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px; width: 100%; }
+    
+    .badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; display: inline-block; }
+    .badge-present { background: #d1fae5; color: #059669; }
+    .badge-absent { background: #fee2e2; color: #dc2626; }
+    .badge-half { background: #fef3c7; color: #d97706; }
+    
+    .message { padding: 12px; border-radius: 6px; margin-bottom: 16px; display: none; }
+    .message.error { background: #fef2f2; color: #dc2626; }
+    .message.success { background: #f0fdf4; color: #16a34a; }
+    
+    .timetable-grid { display: grid; grid-template-columns: 120px repeat(7, 1fr); gap: 8px; overflow-x: auto; }
+    .timetable-header { background: #0f2027; color: white; padding: 10px; font-weight: 600; text-align: center; border-radius: 4px; }
+    .timetable-cell { padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; min-height: 60px; }
+    .timetable-cell.selected { background: #dbeafe; border-color: var(--accent); }
+    .area-select { width: 100%; font-size: 12px; padding: 4px; }
+    
+    .attendance-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+    .day-cell { background: white; border: 1px solid var(--border-color); border-radius: 6px; padding: 12px; min-height: 100px; }
+    .day-header { font-weight: 600; margin-bottom: 8px; font-size: 13px; }
+    .staff-att-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; border-bottom: 1px solid var(--border-color); }
+    
+    @media (max-width: 768px) {
+      .sidebar { width: 60px; }
+      .sidebar-logo img, .sidebar-nav a span, .sidebar-footer span { display: none; }
+      .sidebar-nav a { justify-content: center; padding: 12px; }
+      .main-content { margin-left: 60px; padding: 15px; }
+      .timetable-grid { grid-template-columns: 80px repeat(7, minmax(100px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="assets/logo.png" alt="Logo" onerror="this.style.display='none'">
+    </div>
+    <nav class="sidebar-nav">
+      <a href="dashboard.html">🏠 <span>Dashboard</span></a>
+      <a href="billing.html">📄 <span>Billing</span></a>
+      <a href="stock.html">📦 <span>Stock</span></a>
+      <a href="payments.html">💰 <span>Payments</span></a>
+      <a href="parties.html">👥 <span>Parties</span></a>
+      <a href="party_rates.html"><span>Party Rates</span></a>
+      <a href="ledger.html">📑 <span>Ledger</span></a>
+      <a href="history.html">🧾 <span>Invoice History</span></a>
+      <a href="summary.html">📊 <span>Party Summary</span></a>
+      <a href="staff.html">🧑‍💼 <span>Staff</span></a>
+      <a href="timetable.html" class="active">📅 <span>Timetable</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="handleLogout()">🚪 <span>Logout</span></button>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="page-header">
+      <div class="page-title">📅 Staff Timetable & Monthly Attendance</div>
+      <div>
+        <span id="currentUser" style="margin-right: 15px; color: var(--text-secondary);">Loading...</span>
+        <button class="btn btn-warning btn-sm" onclick="handleLogout()">Logout</button>
+      </div>
+    </div>
+
+    <div id="msgBox" class="message"></div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('timetable')">📆 Weekly Timetable</button>
+      <button class="tab" onclick="switchTab('attendance')">📊 Monthly Attendance</button>
+      <button class="tab" onclick="switchTab('report')">📈 Reports</button>
+    </div>
+
+    <!-- WEEKLY TIMETABLE TAB -->
+    <div id="timetableTab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📆 Weekly Area Assignment Timetable</div>
+          <div style="display:flex; gap:10px;">
+            <input type="week" id="weekSelect" class="form-input" style="width:auto;" onchange="loadTimetable()">
+            <button class="btn btn-primary" onclick="saveTimetable()">💾 Save Timetable</button>
+          </div>
+        </div>
+        
+        <div id="timetableContainer" style="overflow-x:auto;">
+          <div class="timetable-grid" id="timetableGrid">
+            <div class="timetable-header">Staff / Day</div>
+            <div class="timetable-header">Monday</div>
+            <div class="timetable-header">Tuesday</div>
+            <div class="timetable-header">Wednesday</div>
+            <div class="timetable-header">Thursday</div>
+            <div class="timetable-header">Friday</div>
+            <div class="timetable-header">Saturday</div>
+            <div class="timetable-header">Sunday</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📋 Today's Assignments</div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Staff</th><th>Assigned Area</th><th>Zone</th><th>Status</th></tr>
+          </thead>
+          <tbody id="todayAssignments">
+            <tr><td colspan="4" style="text-align:center; padding:20px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- MONTHLY ATTENDANCE TAB -->
+    <div id="attendanceTab" class="tab-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📊 Monthly Attendance Report</div>
+          <div style="display:flex; gap:10px;">
+            <input type="month" id="monthSelect" class="form-input" style="width:auto;" onchange="loadMonthlyAttendance()">
+            <button class="btn btn-primary" onclick="exportAttendance()">📥 Export</button>
+          </div>
+        </div>
+        
+        <div id="attendanceContainer">
+          <div class="attendance-calendar" id="attendanceCalendar">
+            <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-secondary);">Loading attendance...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📈 Attendance Summary</div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Staff</th><th>Present</th><th>Absent</th><th>Half Day</th><th>Leave</th><th>Attendance %</th></tr>
+          </thead>
+          <tbody id="attendanceSummary">
+            <tr><td colspan="6" style="text-align:center; padding:20px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- REPORTS TAB -->
+    <div id="reportTab" class="tab-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">📈 Staff Performance Report</div>
+          <div style="display:flex; gap:10px;">
+            <input type="date" id="reportStart" class="form-input" style="width:auto;">
+            <input type="date" id="reportEnd" class="form-input" style="width:auto;">
+            <button class="btn btn-primary" onclick="generateReport()">Generate</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Staff</th><th>Days Worked</th><th>Areas Covered</th><th>Orders Taken</th><th>Deliveries</th><th>Collections</th></tr>
+          </thead>
+          <tbody id="performanceReport">
+            <tr><td colspan="6" style="text-align:center; padding:20px;">Select date range and click Generate</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ===== SUPABASE SETUP =====
+const SUPABASE_URL = "https://tcgspigynbhhrlgtfnux.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjZ3NwaWd5bmJoaHJsZ3RmbnV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTAwMDksImV4cCI6MjA4NzI2NjAwOX0.s6XnSwWiha7GD000I4xyXRqWtWzK1hsrMVuRpFQNgaU";
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ===== DATA =====
+let staffList = [];
+let areasList = [];
+const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', async () => {
+  await checkAuth();
+  loadData();
+  
+  // Set default dates
+  const today = new Date();
+  document.getElementById('weekSelect').valueAsDate = today;
+  document.getElementById('monthSelect').value = today.toISOString().slice(0, 7);
+  document.getElementById('reportStart').valueAsDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  document.getElementById('reportEnd').valueAsDate = today;
+  
+  loadTimetable();
+  loadTodayAssignments();
+});
+
+// ===== AUTH =====
+async function checkAuth() {
+  try {
+    const { data: { user }, error } = await client.auth.getUser();
+    if (error || !user) {
+      showMsg('Session expired', 'error');
+      setTimeout(() => window.location.href = 'login.html', 2000);
+      return false;
+    }
+    document.getElementById('currentUser').textContent = user.user_metadata?.full_name || user.email;
+    return true;
+  } catch (e) { return false; }
+}
+
+// ===== LOAD DATA =====
+function loadData() {
+  const savedStaff = localStorage.getItem('ae_staff');
+  const savedAreas = localStorage.getItem('ae_areas');
+  
+  staffList = savedStaff ? JSON.parse(savedStaff) : [
+    {id:"s1",name:"Rajesh Kumar",mobile:"9876543210",area:"Area 01",role:"Salesman"},
+    {id:"s2",name:"Amit Sharma",mobile:"9876543211",area:"Area 11",role:"Salesman"},
+    {id:"s3",name:"Priya Singh",mobile:"9876543212",area:"Area 21",role:"Supervisor"},
+    {id:"s4",name:"Vikram Patel",mobile:"9876543213",area:"Area 31",role:"Salesman"}
+  ];
+  
+  areasList = savedAreas ? JSON.parse(savedAreas) : [
+    {id:"a1",name:"Area 01 - Civil Lines",zone:"North"},
+    {id:"a2",name:"Area 11 - Old City",zone:"East"},
+    {id:"a3",name:"Area 21 - Lajpat Nagar",zone:"South"},
+    {id:"a4",name:"Area 31 - Rohini Sec-1",zone:"West"}
+  ];
+}
+
+// ===== TABS =====
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+  event.target.classList.add('active');
+  document.getElementById(tab + 'Tab').style.display = 'block';
+  
+  if (tab === 'timetable') loadTimetable();
+  if (tab === 'attendance') loadMonthlyAttendance();
+}
+
+// ===== TIMETABLE FUNCTIONS =====
+async function loadTimetable() {
+  const weekInput = document.getElementById('weekSelect').value;
+  if (!weekInput) return;
+  
+  const grid = document.getElementById('timetableGrid');
+  // Keep headers, remove rest
+  grid.innerHTML = `
+    <div class="timetable-header">Staff / Day</div>
+    <div class="timetable-header">Monday</div>
+    <div class="timetable-header">Tuesday</div>
+    <div class="timetable-header">Wednesday</div>
+    <div class="timetable-header">Thursday</div>
+    <div class="timetable-header">Friday</div>
+    <div class="timetable-header">Saturday</div>
+    <div class="timetable-header">Sunday</div>
+  `;
+  
+  // Get week start date (Monday)
+  const weekStart = new Date(weekInput + 'T00:00:00');
+  const monday = new Date(weekStart);
+  monday.setDate(monday.getDate() - (monday.getDay() === 0 ? 6 : monday.getDay() - 1));
+  
+  // Load existing timetable
+  const { data: existing } = await client
+    .from('staff_timetable')
+    .select('*')
+    .eq('week_start', monday.toISOString().split('T')[0]);
+  
+  const timetableMap = {};
+  existing?.forEach(t => {
+    if (!timetableMap[t.staff_id]) timetableMap[t.staff_id] = {};
+    timetableMap[t.staff_id][t.day_of_week] = t.area_id;
+  });
+  
+  // Create rows for each staff
+  staffList.forEach(staff => {
+    // Staff name cell
+    const nameCell = document.createElement('div');
+    nameCell.className = 'timetable-cell';
+    nameCell.style.fontWeight = '600';
+    nameCell.style.background = '#f9fafb';
+    nameCell.textContent = staff.name;
+    grid.appendChild(nameCell);
+    
+    // Day cells
+    days.forEach((day, idx) => {
+      const cell = document.createElement('div');
+      cell.className = 'timetable-cell';
+      
+      const select = document.createElement('select');
+      select.className = 'area-select';
+      select.dataset.staffId = staff.id;
+      select.dataset.day = day;
+      select.dataset.dayIndex = idx + 1;
+      
+      // Default option
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Off';
+      select.appendChild(defaultOpt);
+      
+      // Area options
+      areasList.forEach(area => {
+        const opt = document.createElement('option');
+        opt.value = area.id;
+        opt.textContent = area.name;
+        if (timetableMap[staff.id]?.[idx + 1] === area.id) {
+          opt.selected = true;
+        }
+        select.appendChild(opt);
+      });
+      
+      cell.appendChild(select);
+      grid.appendChild(cell);
+    });
+  });
+}
+
+async function saveTimetable() {
+  const weekInput = document.getElementById('weekSelect').value;
+  if (!weekInput) return showMsg('Select a week', 'error');
+  
+  const weekStart = new Date(weekInput + 'T00:00:00');
+  const monday = new Date(weekStart);
+  monday.setDate(monday.getDate() - (monday.getDay() === 0 ? 6 : monday.getDay() - 1));
+  const weekStartStr = monday.toISOString().split('T')[0];
+  
+  // Collect all assignments
+  const selects = document.querySelectorAll('.area-select');
+  const entries = [];
+  
+  selects.forEach(select => {
+    const areaId = select.value;
+    if (areaId) {
+      entries.push({
+        staff_id: select.dataset.staffId,
+        week_start: weekStartStr,
+        day_of_week: parseInt(select.dataset.dayIndex),
+        day_name: select.dataset.day,
+        area_id: areaId,
+        created_at: new Date().toISOString()
+      });
+    }
+  });
+  
+  if (entries.length === 0) return showMsg('No assignments to save', 'error');
+  
+  try {
+    // Delete existing for this week
+    await client.from('staff_timetable').delete().eq('week_start', weekStartStr);
+    
+    // Insert new
+    const { error } = await client.from('staff_timetable').insert(entries);
+    if (error) throw error;
+    
+    showMsg('✅ Timetable saved successfully', 'success');
+    loadTodayAssignments();
+  } catch (err) {
+    showMsg('❌ Save failed: ' + err.message, 'error');
+  }
+}
+
+async function loadTodayAssignments() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const dayName = days[dayOfWeek === 0 ? 6 : dayOfWeek - 1];
+  const todayStr = today.toISOString().split('T')[0];
+  
+  // Get this week's Monday
+  const monday = new Date(today);
+  monday.setDate(monday.getDate() - (monday.getDay() === 0 ? 6 : monday.getDay() - 1));
+  const weekStartStr = monday.toISOString().split('T')[0];
+  
+  // Load today's assignments
+  const { data: assignments } = await client
+    .from('staff_timetable')
+    .select('*, staff (name), beats (name, zone)')
+    .eq('week_start', weekStartStr)
+    .eq('day_of_week', dayOfWeek === 0 ? 7 : dayOfWeek);
+  
+  const tbody = document.getElementById('todayAssignments');
+  
+  if (!assignments || assignments.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">No assignments for today</td></tr>';
+    return;
+  }
+  
+  // Load today's attendance
+  const { data: attendance } = await client
+    .from('attendance')
+    .select('staff_id, status')
+    .eq('date', todayStr);
+  
+  const attMap = {};
+  attendance?.forEach(a => { attMap[a.staff_id] = a.status; });
+  
+  tbody.innerHTML = assignments.map(a => {
+    const status = attMap[a.staff_id] || '-';
+    const badge = status === 'present' ? 'badge-present' : status === 'absent' ? 'badge-absent' : '';
+    return `<tr>
+      <td><strong>${a.staff?.name || 'Unknown'}</strong></td>
+      <td>${a.beats?.name || 'Not assigned'}</td>
+      <td>${a.beats?.zone || '-'}</td>
+      <td><span class="badge ${badge}">${status.toUpperCase()}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== MONTHLY ATTENDANCE =====
+async function loadMonthlyAttendance() {
+  const monthInput = document.getElementById('monthSelect').value;
+  if (!monthInput) return;
+  
+  const [year, month] = monthInput.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const monthName = new Date(year, month - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  
+  // Load attendance data
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+  const endDate = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+  
+  const { data: attendance } = await client
+    .from('attendance')
+    .select('*')
+    .gte('date', startDate)
+    .lte('date', endDate);
+  
+  // Create attendance matrix
+  const attMatrix = {};
+  staffList.forEach(s => {
+    attMatrix[s.id] = {};
+    for (let d = 1; d <= daysInMonth; d++) {
+      attMatrix[s.id][d] = null;
+    }
+  });
+  
+  attendance?.forEach(a => {
+    const day = new Date(a.date).getDate();
+    if (attMatrix[a.staff_id]) {
+      attMatrix[a.staff_id][day] = a.status;
+    }
+  });
+  
+  // Render calendar
+  const container = document.getElementById('attendanceCalendar');
+  container.innerHTML = '';
+  
+  // Header row with dates
+  container.innerHTML += '<div class="day-header">Staff</div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dayName = new Date(year, month - 1, d).toLocaleString('en-US', { weekday: 'short' });
+    container.innerHTML += `<div class="day-header" style="font-size:11px;">${d}<br>${dayName}</div>`;
+  }
+  
+  // Staff rows
+  staffList.forEach(staff => {
+    // Staff name
+    const nameCell = document.createElement('div');
+    nameCell.className = 'day-cell';
+    nameCell.style.fontWeight = '600';
+    nameCell.style.background = '#f9fafb';
+    nameCell.textContent = staff.name;
+    container.appendChild(nameCell);
+    
+    // Days
+    for (let d = 1; d <= daysInMonth; d++) {
+      const cell = document.createElement('div');
+      cell.className = 'day-cell';
+      cell.style.minHeight = '60px';
+      cell.style.padding = '6px';
+      
+      const status = attMatrix[staff.id][d];
+      if (status === 'present') {
+        cell.style.background = '#d1fae5';
+        cell.innerHTML = '<span style="color:#059669; font-weight:600;">P</span>';
+      } else if (status === 'absent') {
+        cell.style.background = '#fee2e2';
+        cell.innerHTML = '<span style="color:#dc2626; font-weight:600;">A</span>';
+      } else {
+        cell.style.background = '#f3f4f6';
+        cell.innerHTML = '<span style="color:#9ca3af;">-</span>';
+      }
+      
+      container.appendChild(cell);
+    }
+  });
+  
+  // Calculate summary
+  calculateAttendanceSummary(attMatrix, daysInMonth);
+}
+
+function calculateAttendanceSummary(matrix, daysInMonth) {
+  const tbody = document.getElementById('attendanceSummary');
+  tbody.innerHTML = '';
+  
+  staffList.forEach(staff => {
+    let present = 0, absent = 0, half = 0, leave = 0;
+    
+    for (let d = 1; d <= daysInMonth; d++) {
+      const status = matrix[staff.id][d];
+      if (status === 'present') present++;
+      else if (status === 'absent') absent++;
+      else if (status === 'half') half++;
+      else if (status === 'leave') leave++;
+    }
+    
+    const total = present + absent + half + leave;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+    
+    tbody.innerHTML += `<tr>
+      <td><strong>${staff.name}</strong></td>
+      <td style="color:#059669; font-weight:600;">${present}</td>
+      <td style="color:#dc2626;">${absent}</td>
+      <td>${half}</td>
+      <td>${leave}</td>
+      <td><span class="badge ${percentage >= 80 ? 'badge-present' : percentage >= 60 ? 'badge-half' : 'badge-absent'}">${percentage}%</span></td>
+    </tr>`;
+  });
+}
+
+function exportAttendance() {
+  showMsg('📥 Export feature - generating CSV...', 'success');
+  // Implementation for CSV export
+}
+
+// ===== PERFORMANCE REPORT =====
+async function generateReport() {
+  const start = document.getElementById('reportStart').value;
+  const end = document.getElementById('reportEnd').value;
+  
+  if (!start || !end) return showMsg('Select date range', 'error');
+  
+  const tbody = document.getElementById('performanceReport');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Loading...</td></tr>';
+  
+  try {
+    // Load orders
+    const { data: orders } = await client
+      .from('orders')
+      .select('*, staff (name)')
+      .gte('date', start)
+      .lte('date', end);
+    
+    // Load attendance
+    const { data: attendance } = await client
+      .from('attendance')
+      .select('staff_id, status')
+      .gte('date', start)
+      .lte('date', end);
+    
+    // Load timetable
+    const { data: timetable } = await client
+      .from('staff_timetable')
+      .select('area_id')
+      .gte('week_start', start)
+      .lte('week_start', end);
+    
+    // Calculate stats
+    const stats = staffList.map(staff => {
+      const staffOrders = orders?.filter(o => o.staff_id === staff.id) || [];
+      const staffAtt = attendance?.filter(a => a.staff_id === staff.id) || [];
+      const presentDays = staffAtt.filter(a => a.status === 'present').length;
+      const areasCovered = new Set(timetable?.filter(t => t.staff_id === staff.id).map(t => t.area_id)).size;
+      
+      const orderCount = staffOrders.filter(o => o.collection_type === 'order').length;
+      const deliveryCount = staffOrders.filter(o => o.collection_type === 'delivery').length;
+      const collectionCount = staffOrders.filter(o => o.collection_type === 'payment').length;
+      
+      return {
+        name: staff.name,
+        days: presentDays,
+        areas: areasCovered,
+        orders: orderCount,
+        deliveries: deliveryCount,
+        collections: collectionCount
+      };
+    });
+    
+    tbody.innerHTML = stats.map(s => `<tr>
+      <td><strong>${s.name}</strong></td>
+      <td>${s.days}</td>
+      <td>${s.areas}</td>
+      <td>${s.orders}</td>
+      <td>${s.deliveries}</td>
+      <td>${s.collections}</td>
+    </tr>`).join('');
+    
+  } catch (err) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--danger);">Error loading report</td></tr>';
+  }
+}
+
+// ===== UTILS =====
+function showMsg(text, type) {
+  const box = document.getElementById('msgBox');
+  box.textContent = text;
+  box.className = `message ${type}`;
+  box.style.display = 'block';
+  setTimeout(() => box.style.display = 'none', 3000);
+}
+
+async function handleLogout() {
+  await client.auth.signOut();
+  window.location.href = 'login.html';
+}
+</script>
+
+</body>
+</html>

@@ -1,236 +1,1249 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Staff Management - Adiraj Enterprises</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Staff Management - Adiraj Enterprises</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary: #1e3a5f;
+      --primary-dark: #152a45;
+      --secondary: #2c5282;
+      --accent: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --light: #f8fafc;
+      --dark: #0f172a;
+      --gray: #64748b;
+      --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --sidebar-width: 260px;
+    }
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      color: var(--dark);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
 
-<style>
-body {
-  margin:0;
-  font-family: Arial;
-  background:#f4f6f9;
-}
+    .sidebar {
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 24px 16px;
+      color: white;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    }
 
-.sidebar {
-  width:250px;
-  height:100vh;
-  background:#0f2027;
-  position:fixed;
-  left:0;
-  top:0;
-  padding-top:20px;
-  color:white;
-}
+    .brand {
+      text-align: center;
+      padding: 12px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 20px;
+    }
 
-.sidebar img {
-  width:180px;
-  display:block;
-  margin:0 auto 30px auto;
-}
+    .brand-logo {
+      width: 160px;
+      height: auto;
+      margin-bottom: 10px;
+    }
 
-.sidebar a {
-  display:block;
-  padding:15px 25px;
-  color:white;
-  text-decoration:none;
-}
+    .brand-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
 
-.sidebar a:hover {
-  background:#1a2a40;
-}
+    .brand-tagline {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.7);
+      margin-top: 4px;
+    }
 
-.content {
-  margin-left:250px;
-  padding:40px;
-}
+    .nav-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
 
-input, select {
-  padding:8px;
-  margin:5px;
-}
+    .nav-menu::-webkit-scrollbar { width: 4px; }
+    .nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
 
-button {
-  padding:8px 15px;
-  background:#1a2a40;
-  color:white;
-  border:none;
-  cursor:pointer;
-}
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 0;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
 
-button:hover {
-  background:#243b55;
-}
+    .nav-item:hover,
+    .nav-item.active {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      transform: translateX(4px);
+    }
 
-table {
-  width:100%;
-  border-collapse: collapse;
-  margin-top:20px;
-}
+    .nav-item i {
+      width: 20px;
+      text-align: center;
+      font-size: 1.1rem;
+    }
 
-table, th, td {
-  border:1px solid #ccc;
-  padding:8px;
-  text-align:center;
-}
-</style>
+    .logout-btn {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .content {
+      margin-left: var(--sidebar-width);
+      padding: 32px 40px;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .page-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 24px;
+      border-left: 4px solid var(--accent);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: var(--gray);
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+      border-radius: 6px 6px 0 0;
+    }
+
+    .tab:hover {
+      color: var(--primary);
+      background: rgba(59,130,246,0.05);
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(59,130,246,0.1);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .btn:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #059669; }
+    .btn-warning { background: var(--warning); color: var(--dark); }
+    .btn-danger { background: var(--danger); }
+    .btn-sm { padding: 6px 14px; font-size: 0.85rem; }
+    .btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); }
+    .btn-outline:hover { background: var(--primary); color: white; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--gray);
+    }
+
+    .form-input, .form-select {
+      padding: 10px 14px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    .form-input:focus, .form-select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+    }
+
+    .badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .badge-present { background: #d1fae5; color: #059669; }
+    .badge-absent { background: #fee2e2; color: #dc2626; }
+    .badge-zone { background: #dbeafe; color: #2563eb; }
+
+    .message {
+      padding: 14px 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .message.error { background: #fef2f2; color: #dc2626; border-left: 4px solid #ef4444; }
+    .message.success { background: #f0fdf4; color: #16a34a; border-left: 4px solid #10b981; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .timetable-wrapper {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+      margin-top: 16px;
+    }
+
+    .timetable-grid {
+      display: grid;
+      grid-template-columns: 180px repeat(7, 1fr);
+      min-width: 1000px;
+    }
+
+    .tt-header {
+      background: var(--primary);
+      color: white;
+      padding: 12px;
+      font-weight: 600;
+      text-align: center;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .tt-header:first-child {
+      text-align: left;
+      padding-left: 16px;
+    }
+
+    .tt-cell {
+      padding: 10px;
+      border-right: 1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
+      background: white;
+    }
+
+    .tt-cell:first-child {
+      font-weight: 600;
+      color: var(--primary);
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+    }
+
+    .tt-cell select {
+      width: 100%;
+      padding: 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    th {
+      background: var(--primary);
+      color: white;
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    tr:hover td {
+      background: #f8fafc;
+    }
+
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+      color: var(--gray);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .sidebar.active { transform: translateX(0); }
+      .content { margin-left: 0; padding: 24px; }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <img src="assets/logo.png">
-  <a href="dashboard.html">🏠 Dashboard</a>
-  <a href="billing.html">📄 Billing</a>
-</div>
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="Adiraj Enterprises" class="brand-logo" onerror="this.style.display='none'">
+      <div class="brand-name">Adiraj Enterprises</div>
+      <div class="brand-tagline">Wholesale Distribution Management</div>
+    </div>
+    <nav class="nav-menu">
+      <a href="dashboard.html" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="billing.html" class="nav-item"><i class="fas fa-file-invoice"></i> Billing</a>
+      <a href="stock.html" class="nav-item"><i class="fas fa-boxes"></i> Stock</a>
+      <a href="payments.html" class="nav-item"><i class="fas fa-wallet"></i> Payments</a>
+      <a href="parties.html" class="nav-item"><i class="fas fa-users"></i> Parties</a>
+      <a href="party_rates.html" class="nav-item"><i class="fas fa-tag"></i> Party Rates</a>
+      <a href="ledger.html" class="nav-item"><i class="fas fa-book"></i> Ledger</a>
+      <a href="history.html" class="nav-item"><i class="fas fa-history"></i> Invoice History</a>
+      <a href="summary.html" class="nav-item"><i class="fas fa-chart-pie"></i> Party Summary</a>
+      <a href="staff.html" class="nav-item active"><i class="fas fa-user-tie"></i> Staff</a>
+    </nav>
+    <div class="logout-btn">
+      <a href="#" onclick="logout()" class="nav-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+  </aside>
 
-<div class="content">
+  <main class="content">
+    <header class="header">
+      <h1 class="page-title"><i class="fas fa-user-tie"></i> Staff Management</h1>
+      <div class="user-info">
+        <div class="user-avatar" id="userInitials">AE</div>
+        <span id="userName">Admin</span>
+      </div>
+    </header>
 
-<h2>Staff Management</h2>
+    <div id="msgBox" class="message"></div>
 
-<h3>Create New Staff</h3>
+    <!-- QUICK ATTENDANCE SECTION -->
+    <div class="card" id="quickAttendanceCard">
+      <div class="card-header">
+        <div class="card-title"><i class="fas fa-clipboard-check"></i> Quick Attendance - Today</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <span id="todayDate" style="color:var(--gray); font-size:0.9rem; align-self:center;"></span>
+          <button class="btn btn-success btn-sm" onclick="markAllPresent()"><i class="fas fa-check-circle"></i> Mark All Present</button>
+          <button class="btn btn-outline btn-sm" onclick="loadQuickAttendance()"><i class="fas fa-sync"></i> Refresh</button>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Staff</th>
+              <th>Mobile</th>
+              <th>Default Area</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="quickAttendanceBody">
+            <tr><td colspan="5" style="text-align:center; padding:20px;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-<input type="email" id="staffEmail" placeholder="Staff Email">
-<input type="password" id="staffPassword" placeholder="Password">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('timetable')"><i class="fas fa-calendar-week"></i> Weekly Timetable</button>
+      <button class="tab" onclick="switchTab('attendance')"><i class="fas fa-calendar-check"></i> Monthly Attendance</button>
+      <button class="tab" onclick="switchTab('staff')"><i class="fas fa-users"></i> Staff Directory</button>
+      <button class="tab" onclick="switchTab('areas')"><i class="fas fa-map-marked-alt"></i> Areas</button>
+    </div>
 
-<select id="staffRole">
-  <option value="staff">Staff</option>
-  <option value="viewer">Viewer</option>
-  <option value="admin">Admin</option>
-</select>
+    <!-- WEEKLY TIMETABLE TAB -->
+    <div id="timetableTab" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-calendar-alt"></i> Weekly Area Assignment</div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input type="week" id="weekSelect" class="form-input" style="width:auto;">
+            <button class="btn" onclick="saveTimetable()"><i class="fas fa-save"></i> Save Timetable</button>
+          </div>
+        </div>
+        
+        <div class="timetable-wrapper">
+          <div class="timetable-grid" id="timetableGrid">
+            <div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--gray);">
+              <i class="fas fa-spinner fa-spin"></i> Loading timetable...
+            </div>
+          </div>
+        </div>
+      </div>
 
-<button onclick="createStaff()">Create Staff</button>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-tasks"></i> Today's Assignments</div>
+          <button class="btn btn-sm btn-success" onclick="loadTodayAssignments()"><i class="fas fa-sync"></i> Refresh</button>
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Staff</th>
+                <th>Assigned Area</th>
+                <th>Zone</th>
+                <th>Attendance</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="todayAssignments">
+              <tr><td colspan="5" style="text-align:center; padding:20px;">No assignments for today</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-<hr>
+    <!-- MONTHLY ATTENDANCE TAB -->
+    <div id="attendanceTab" class="tab-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-chart-bar"></i> Monthly Attendance</div>
+          <input type="month" id="monthSelect" class="form-input" style="width:auto;">
+        </div>
+        <div id="attendanceCalendar" style="overflow-x:auto;">
+          <div style="text-align:center; padding:40px; color:var(--gray);">
+            Select a month to view attendance
+          </div>
+        </div>
+      </div>
+    </div>
 
-<h3>Existing Staff</h3>
+    <!-- STAFF DIRECTORY TAB -->
+    <div id="staffTab" class="tab-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-user-plus"></i> Add / Edit Staff</div>
+        </div>
+        <input type="hidden" id="editStaffId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Staff Name *</label>
+            <input type="text" id="staffName" class="form-input" placeholder="Enter full name">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mobile Number *</label>
+            <input type="tel" id="staffMobile" class="form-input" placeholder="10 digits" maxlength="10">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select id="staffRole" class="form-select">
+              <option value="Salesman">Salesman</option>
+              <option value="Supervisor">Supervisor</option>
+              <option value="Delivery">Delivery Agent</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Default Area</label>
+            <select id="staffDefaultArea" class="form-select">
+              <option value="">Select Area</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" onclick="saveStaff()"><i class="fas fa-save"></i> Save Staff</button>
+          <button class="btn btn-outline" onclick="clearStaffForm()"><i class="fas fa-undo"></i> Clear</button>
+        </div>
+      </div>
 
-<table id="staffTable">
-  <tr>
-    <th>Email</th>
-    <th>Role</th>
-    <th>Action</th>
-  </tr>
-</table>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-list"></i> Staff Directory</div>
+          <input type="text" id="searchStaff" class="form-input" placeholder="🔍 Search staff..." style="width:250px;" onkeyup="renderStaffTable()">
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Role</th>
+                <th>Default Area</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="staffBody">
+              <tr><td colspan="5" style="text-align:center; padding:20px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-</div>
+    <!-- AREAS TAB -->
+    <div id="areasTab" class="tab-content" style="display:none;">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-map-marker-plus"></i> Add / Edit Area</div>
+        </div>
+        <input type="hidden" id="editAreaId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Area Name *</label>
+            <input type="text" id="areaName" class="form-input" placeholder="e.g., Area 01 - Civil Lines">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Zone</label>
+            <select id="areaZone" class="form-select">
+              <option value="North">North</option>
+              <option value="South">South</option>
+              <option value="East">East</option>
+              <option value="West">West</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; gap:10px;">
+          <button class="btn" onclick="saveArea()"><i class="fas fa-save"></i> Save Area</button>
+          <button class="btn btn-outline" onclick="clearAreaForm()"><i class="fas fa-undo"></i> Clear</button>
+        </div>
+      </div>
 
-<script>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-list"></i> All Areas</div>
+          <input type="text" id="searchAreas" class="form-input" placeholder="🔍 Search areas..." style="width:250px;" onkeyup="renderAreasTable()">
+        </div>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>Area Name</th>
+                <th>Zone</th>
+                <th>Assigned Staff</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="areasBody">
+              <tr><td colspan="4" style="text-align:center; padding:20px;">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-const client = supabase.createClient(
-  "https://tcgspigynbhhrlgtfnux.supabase.co",
-  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
-);
+    <footer class="footer">
+      <p>&copy; <span id="year"></span> Adiraj Enterprises. All rights reserved.</p>
+    </footer>
+  </main>
 
-/* Role Protection */
-async function checkAccess() {
+  <script>
+    const { createClient } = supabase;
+    const client = createClient(
+      "https://tcgspigynbhhrlgtfnux.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjZ3NwaWd5bmJoaHJsZ3RmbnV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTAwMDksImV4cCI6MjA4NzI2NjAwOX0.s6XnSwWiha7GD000I4xyXRqWtWzK1hsrMVuRpFQNgaU"
+    );
 
-  const { data: { user } } = await client.auth.getUser();
+    let staffList = [];
+    let areasList = [];
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
+    document.addEventListener('DOMContentLoaded', async () => {
+      document.getElementById('year').textContent = new Date().getFullYear();
+      
+      // Set default week to current week
+      const today = new Date();
+      const weekInput = document.getElementById('weekSelect');
+      const year = today.getFullYear();
+      const week = getWeekNumber(today);
+      weekInput.value = `${year}-W${week.toString().padStart(2, '0')}`;
+      
+      // Set default month to current month
+      document.getElementById('monthSelect').value = today.toISOString().slice(0, 7);
+      
+      // Display today's date
+      document.getElementById('todayDate').textContent = today.toLocaleDateString('en-IN', { 
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+      });
+      
+      try {
+        const { data: { user } } = await client.auth.getUser();
+        if (!user) { window.location.href = "login.html"; return; }
+        
+        if (user.user_metadata?.full_name) {
+          document.getElementById('userName').textContent = user.user_metadata.full_name;
+          document.getElementById('userInitials').textContent = 
+            user.user_metadata.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+        }
+        
+        loadConfig();
+        renderAll();
+        loadQuickAttendance();
+        
+      } catch (error) {
+        console.error("Auth error:", error);
+        window.location.href = "login.html";
+      }
+    });
 
-  const { data } = await client
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+    // Helper function to get week number
+    function getWeekNumber(date) {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    }
 
-  if (data.role !== "admin") {
-    alert("Access Denied");
-    window.location.href = "dashboard.html";
-  }
-  async function logout() {
-    await client.auth.signOut();
-    window.location.href = "login.html";
-}
-}
+    function loadConfig() {
+      const savedStaff = localStorage.getItem('ae_staff');
+      const savedAreas = localStorage.getItem('ae_areas');
+      
+      staffList = savedStaff ? JSON.parse(savedStaff) : [];
+      areasList = savedAreas ? JSON.parse(savedAreas) : [];
+      
+      localStorage.setItem('ae_staff', JSON.stringify(staffList));
+      localStorage.setItem('ae_areas', JSON.stringify(areasList));
+    }
 
-/* Create Staff */
-async function createStaff() {
+    function switchTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
+      event.target.classList.add('active');
+      document.getElementById(tab + 'Tab').style.display = 'block';
+      
+      if (tab === 'timetable') loadTimetable();
+      if (tab === 'attendance') loadMonthlyAttendance();
+      if (tab === 'staff') renderStaffTable();
+      if (tab === 'areas') renderAreasTable();
+    }
 
-  const email = document.getElementById("staffEmail").value;
-  const password = document.getElementById("staffPassword").value;
-  const role = document.getElementById("staffRole").value;
+    function renderAll() {
+      populateDropdowns();
+      renderStaffTable();
+      renderAreasTable();
+      loadTimetable();
+      loadTodayAssignments();
+    }
 
-  if (!email || !password) {
-    alert("Email and Password required");
-    return;
-  }
+    function populateDropdowns() {
+      const sel = document.getElementById('staffDefaultArea');
+      sel.innerHTML = '<option value="">Select Area</option>' + 
+        areasList.map(a => `<option value="${a.name}">${a.name} (${a.zone})</option>`).join('');
+    }
 
-  const { data, error } = await client.auth.signUp({
-    email: email,
-    password: password
-  });
+    // QUICK ATTENDANCE FUNCTIONS
+    async function loadQuickAttendance() {
+      const today = new Date().toISOString().split('T')[0];
+      const tbody = document.getElementById('quickAttendanceBody');
+      
+      try {
+        const { data: attendance } = await client
+          .from('attendance')
+          .select('staff_id, status')
+          .eq('date', today);
+        
+        const attMap = {};
+        attendance?.forEach(a => { attMap[a.staff_id] = a.status; });
+        
+        if (staffList.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--gray);">No staff found. Add staff first.</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = staffList.map(s => {
+          const status = attMap[s.id] || null;
+          const badge = status === 'present' ? 'badge-present' : status === 'absent' ? 'badge-absent' : '';
+          const badgeText = status ? status.toUpperCase() : 'NOT MARKED';
+          
+          return `<tr>
+            <td><strong>${s.name}</strong></td>
+            <td>${s.mobile}</td>
+            <td><span class="badge badge-zone">${s.defaultArea || 'Unassigned'}</span></td>
+            <td><span class="badge ${badge}">${badgeText}</span></td>
+            <td>
+              <button class="btn btn-sm btn-success" onclick="markAtt('${s.id}', 'present')" ${status === 'present' ? 'disabled' : ''}>
+                <i class="fas fa-check"></i> Present
+              </button>
+              <button class="btn btn-sm btn-danger" onclick="markAtt('${s.id}', 'absent')" ${status === 'absent' ? 'disabled' : ''} style="margin-left:6px;">
+                <i class="fas fa-times"></i> Absent
+              </button>
+            </td>
+          </tr>`;
+        }).join('');
+      } catch (err) {
+        console.error('Error loading attendance:', err);
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--danger);">Error loading attendance</td></tr>';
+      }
+    }
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+    async function markAtt(staffId, status) {
+      const today = new Date().toISOString().split('T')[0];
+      
+      try {
+        const { error } = await client.from('attendance').upsert({
+          staff_id: staffId,
+          date: today,
+          status: status,
+          created_at: new Date().toISOString()
+        }, { onConflict: 'staff_id,date' });
+        
+        if (error) throw error;
+        
+        showMsg(`✅ Marked ${status}`, 'success');
+        loadQuickAttendance();
+        loadTodayAssignments();
+      } catch (err) {
+        showMsg('❌ Error: ' + err.message, 'error');
+      }
+    }
 
-  await client.from("user_roles").insert([{
-    user_id: data.user.id,
-    role: role
-  }]);
+    async function markAllPresent() {
+      const today = new Date().toISOString().split('T')[0];
+      
+      if (staffList.length === 0) {
+        showMsg('No staff to mark', 'error');
+        return;
+      }
+      
+      try {
+        const entries = staffList.map(s => ({
+          staff_id: s.id,
+          date: today,
+          status: 'present',
+          created_at: new Date().toISOString()
+        }));
+        
+        const { error } = await client.from('attendance').upsert(entries, {
+          onConflict: 'staff_id,date'
+        });
+        
+        if (error) throw error;
+        
+        showMsg(`✅ Marked ${staffList.length} staff as present`, 'success');
+        loadQuickAttendance();
+        loadTodayAssignments();
+      } catch (err) {
+        showMsg('❌ Error: ' + err.message, 'error');
+      }
+    }
 
-  alert("Staff Created");
+    // STAFF MANAGEMENT
+    function renderStaffTable() {
+      const tbody = document.getElementById('staffBody');
+      const search = document.getElementById('searchStaff').value.toLowerCase();
+      
+      const filtered = staffList.filter(s => 
+        s.name.toLowerCase().includes(search) || s.mobile.includes(search)
+      );
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--gray);">No staff found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filtered.map(s => `
+        <tr>
+          <td><strong>${s.name}</strong></td>
+          <td>${s.mobile}</td>
+          <td>${s.role}</td>
+          <td><span class="badge badge-zone">${s.defaultArea || 'Unassigned'}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="editStaff('${s.id}')"><i class="fas fa-edit"></i></button>
+            <button class="btn btn-sm btn-danger" onclick="deleteStaff('${s.id}')"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
 
-  document.getElementById("staffEmail").value = "";
-  document.getElementById("staffPassword").value = "";
+    function saveStaff() {
+      const id = document.getElementById('editStaffId').value;
+      const name = document.getElementById('staffName').value.trim();
+      const mobile = document.getElementById('staffMobile').value.trim();
+      const role = document.getElementById('staffRole').value;
+      const defaultArea = document.getElementById('staffDefaultArea').value;
+      
+      if (!name || !mobile) return showMsg('Name and mobile required', 'error');
+      
+      if (id) {
+        const idx = staffList.findIndex(s => s.id === id);
+        if (idx !== -1) staffList[idx] = { id, name, mobile, role, defaultArea };
+      } else {
+        staffList.push({ id: 's' + Date.now(), name, mobile, role, defaultArea });
+      }
+      
+      localStorage.setItem('ae_staff', JSON.stringify(staffList));
+      clearStaffForm();
+      renderAll();
+      loadQuickAttendance();
+      showMsg('✅ Staff saved', 'success');
+    }
 
-  loadStaff();
-}
+    function editStaff(id) {
+      const s = staffList.find(x => x.id === id);
+      if (!s) return;
+      document.getElementById('editStaffId').value = s.id;
+      document.getElementById('staffName').value = s.name;
+      document.getElementById('staffMobile').value = s.mobile;
+      document.getElementById('staffRole').value = s.role;
+      document.getElementById('staffDefaultArea').value = s.defaultArea || '';
+    }
 
-/* Load Staff List */
-async function loadStaff() {
+    function deleteStaff(id) {
+      if (!confirm('Delete this staff?')) return;
+      staffList = staffList.filter(s => s.id !== id);
+      localStorage.setItem('ae_staff', JSON.stringify(staffList));
+      renderAll();
+      loadQuickAttendance();
+      showMsg('Staff deleted', 'success');
+    }
 
-  const { data } = await client
-    .from("user_roles")
-    .select("role, user_id");
+    function clearStaffForm() {
+      document.getElementById('editStaffId').value = '';
+      document.getElementById('staffName').value = '';
+      document.getElementById('staffMobile').value = '';
+      document.getElementById('staffRole').value = 'Salesman';
+      document.getElementById('staffDefaultArea').value = '';
+    }
 
-  const table = document.getElementById("staffTable");
+    // AREAS MANAGEMENT
+    function renderAreasTable() {
+      const tbody = document.getElementById('areasBody');
+      const search = document.getElementById('searchAreas').value.toLowerCase();
+      
+      const filtered = areasList.filter(a => 
+        a.name.toLowerCase().includes(search) || a.zone.toLowerCase().includes(search)
+      );
+      
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--gray);">No areas found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = filtered.map(a => {
+        const assigned = staffList.filter(s => s.defaultArea === a.name).map(s => s.name).join(', ') || 'None';
+        return `
+          <tr>
+            <td><strong>${a.name}</strong></td>
+            <td><span class="badge badge-zone">${a.zone}</span></td>
+            <td>${assigned}</td>
+            <td>
+              <button class="btn btn-sm btn-outline" onclick="editArea('${a.id}')"><i class="fas fa-edit"></i></button>
+              <button class="btn btn-sm btn-danger" onclick="deleteArea('${a.id}')"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
 
-  table.innerHTML = `
-    <tr>
-      <th>User ID</th>
-      <th>Role</th>
-      <th>Action</th>
-    </tr>
-  `;
+    function saveArea() {
+      const id = document.getElementById('editAreaId').value;
+      const name = document.getElementById('areaName').value.trim();
+      const zone = document.getElementById('areaZone').value;
+      
+      if (!name) return showMsg('Area name required', 'error');
+      
+      if (id) {
+        const idx = areasList.findIndex(a => a.id === id);
+        if (idx !== -1) {
+          const oldName = areasList[idx].name;
+          areasList[idx] = { id, name, zone };
+          staffList.forEach(s => { if (s.defaultArea === oldName) s.defaultArea = name; });
+        }
+      } else {
+        areasList.push({ id: 'a' + Date.now(), name, zone });
+      }
+      
+      localStorage.setItem('ae_areas', JSON.stringify(areasList));
+      clearAreaForm();
+      renderAll();
+      loadQuickAttendance();
+      showMsg('✅ Area saved', 'success');
+    }
 
-  data.forEach(staff => {
+    function editArea(id) {
+      const a = areasList.find(x => x.id === id);
+      if (!a) return;
+      document.getElementById('editAreaId').value = a.id;
+      document.getElementById('areaName').value = a.name;
+      document.getElementById('areaZone').value = a.zone;
+    }
 
-    table.innerHTML += `
-      <tr>
-        <td>${staff.user_id}</td>
-        <td>${staff.role}</td>
-        <td>
-          <button onclick="deleteStaff('${staff.user_id}')">Delete</button>
-        </td>
-      </tr>
-    `;
-  });
-}
+    function deleteArea(id) {
+      if (!confirm('Delete this area?')) return;
+      areasList = areasList.filter(a => a.id !== id);
+      localStorage.setItem('ae_areas', JSON.stringify(areasList));
+      renderAll();
+      loadQuickAttendance();
+      showMsg('Area deleted', 'success');
+    }
 
-/* Delete Staff */
-async function deleteStaff(userId) {
+    function clearAreaForm() {
+      document.getElementById('editAreaId').value = '';
+      document.getElementById('areaName').value = '';
+      document.getElementById('areaZone').value = 'North';
+    }
 
-  if (!confirm("Delete this staff?")) return;
+    // TIMETABLE
+    async function loadTimetable() {
+      const weekInput = document.getElementById('weekSelect').value;
+      if (!weekInput) {
+        document.getElementById('timetableGrid').innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--gray);">Please select a week</div>';
+        return;
+      }
+      
+      const grid = document.getElementById('timetableGrid');
+      grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--gray);"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+      
+      try {
+        const [year, week] = weekInput.split('-W');
+        if (!year || !week) throw new Error('Invalid week format');
+        
+        const jan1 = new Date(year, 0, 1);
+        const daysToAdd = (week - 1) * 7 - jan1.getDay() + 1;
+        const monday = new Date(jan1);
+        monday.setDate(jan1.getDate() + daysToAdd);
+        
+        if (isNaN(monday.getTime())) {
+          throw new Error('Invalid date calculated');
+        }
+        
+        const weekStartStr = monday.toISOString().split('T')[0];
+        
+        let html = '<div class="tt-header">Staff / Day</div>';
+        days.forEach(day => { html += `<div class="tt-header">${day}</div>`; });
+        
+        const { data: existing, error } = await client
+          .from('staff_timetable')
+          .select('*')
+          .eq('week_start', weekStartStr);
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Timetable load error:', error);
+        }
+        
+        const timetableMap = {};
+        existing?.forEach(t => {
+          if (!timetableMap[t.staff_id]) timetableMap[t.staff_id] = {};
+          timetableMap[t.staff_id][t.day_of_week] = t.area_id;
+        });
+        
+        if (staffList.length === 0) {
+          grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--gray);">No staff found. Add staff first.</div>';
+          return;
+        }
+        
+        staffList.forEach(staff => {
+          html += `<div class="tt-cell">${staff.name}</div>`;
+          for (let dayIdx = 1; dayIdx <= 7; dayIdx++) {
+            html += `<div class="tt-cell">
+              <select data-staff="${staff.id}" data-day="${dayIdx}">
+                <option value="">Off</option>
+                ${areasList.map(area => {
+                  const selected = timetableMap[staff.id]?.[dayIdx] === area.id ? 'selected' : '';
+                  return `<option value="${area.id}" ${selected}>${area.name}</option>`;
+                }).join('')}
+              </select>
+            </div>`;
+          }
+        });
+        
+        grid.innerHTML = html;
+      } catch (err) {
+        console.error('Error loading timetable:', err);
+        grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--danger);">Error: ${err.message}</div>`;
+      }
+    }
 
-  await client.from("user_roles")
-    .delete()
-    .eq("user_id", userId);
+    async function saveTimetable() {
+      const weekInput = document.getElementById('weekSelect').value;
+      if (!weekInput) return showMsg('Select a week', 'error');
+      
+      try {
+        const [year, week] = weekInput.split('-W');
+        const jan1 = new Date(year, 0, 1);
+        const daysToAdd = (week - 1) * 7 - jan1.getDay() + 1;
+        const monday = new Date(jan1);
+        monday.setDate(jan1.getDate() + daysToAdd);
+        
+        if (isNaN(monday.getTime())) {
+          throw new Error('Invalid week date');
+        }
+        
+        const weekStartStr = monday.toISOString().split('T')[0];
+        
+        const selects = document.querySelectorAll('#timetableGrid select');
+        const entries = [];
+        
+        selects.forEach(select => {
+          if (select.value) {
+            entries.push({
+              staff_id: select.dataset.staff,
+              week_start: weekStartStr,
+              day_of_week: parseInt(select.dataset.day),
+              day_name: days[parseInt(select.dataset.day) - 1],
+              area_id: select.value,
+              created_at: new Date().toISOString()
+            });
+          }
+        });
+        
+        if (entries.length === 0) return showMsg('No assignments to save', 'error');
+        
+        await client.from('staff_timetable').delete().eq('week_start', weekStartStr);
+        
+        const { error } = await client.from('staff_timetable').insert(entries);
+        if (error) throw error;
+        
+        showMsg('✅ Timetable saved!', 'success');
+        loadTodayAssignments();
+      } catch (err) {
+        showMsg('❌ Save failed: ' + err.message, 'error');
+      }
+    }
 
-  alert("Staff Role Removed");
-  loadStaff();
-}
+    async function loadTodayAssignments() {
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const dayIndex = dayOfWeek === 0 ? 7 : dayOfWeek;
+      const todayStr = today.toISOString().split('T')[0];
+      
+      const currentDay = today.getDate();
+      const dayOfWeekNum = today.getDay() || 7;
+      const monday = new Date(today);
+      monday.setDate(currentDay - dayOfWeekNum + 1);
+      const weekStartStr = monday.toISOString().split('T')[0];
+      
+      try {
+        const { data: assignments, error } = await client
+          .from('staff_timetable')
+          .select('*, beats (name, zone)')
+          .eq('week_start', weekStartStr)
+          .eq('day_of_week', dayIndex);
+        
+        if (error && error.code !== 'PGRST116') {
+          console.error('Error loading assignments:', error);
+        }
+        
+        const { data: attendance } = await client
+          .from('attendance')
+          .select('staff_id, status')
+          .eq('date', todayStr);
+        
+        const attMap = {};
+        attendance?.forEach(a => { attMap[a.staff_id] = a.status; });
+        
+        const tbody = document.getElementById('todayAssignments');
+        
+        if (!assignments || assignments.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--gray);">No assignments for today</td></tr>';
+          return;
+        }
+        
+        tbody.innerHTML = assignments.map(a => {
+          const staff = staffList.find(s => s.id === a.staff_id);
+          const status = attMap[a.staff_id] || '-';
+          const badge = status === 'present' ? 'badge-present' : status === 'absent' ? 'badge-absent' : '';
+          
+          return `<tr>
+            <td><strong>${staff?.name || 'Unknown'}</strong></td>
+            <td>${a.beats?.name || 'Not assigned'}</td>
+            <td><span class="badge badge-zone">${a.beats?.zone || '-'}</span></td>
+            <td><span class="badge ${badge}">${status.toUpperCase()}</span></td>
+            <td>
+              <button class="btn btn-sm btn-success" onclick="markAtt('${a.staff_id}', 'present')"><i class="fas fa-check"></i></button>
+              <button class="btn btn-sm btn-danger" onclick="markAtt('${a.staff_id}', 'absent')"><i class="fas fa-times"></i></button>
+            </td>
+          </tr>`;
+        }).join('');
+      } catch (err) {
+        console.error('Error loading today assignments:', err);
+        document.getElementById('todayAssignments').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--danger);">Error loading assignments</td></tr>';
+      }
+    }
 
-checkAccess();
-loadStaff();
+    async function loadMonthlyAttendance() {
+      const monthInput = document.getElementById('monthSelect').value;
+      if (!monthInput) return;
+      
+      const [year, month] = monthInput.split('-').map(Number);
+      const daysInMonth = new Date(year, month, 0).getDate();
+      
+      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+      const endDate = `${year}-${String(month).padStart(2, '0')}-${String(daysInMonth).padStart(2, '0')}`;
+      
+      try {
+        const { data: attendance } = await client
+          .from('attendance')
+          .select('*')
+          .gte('date', startDate)
+          .lte('date', endDate);
+        
+        const container = document.getElementById('attendanceCalendar');
+        let html = '<div class="timetable-grid"><div class="tt-header">Staff</div>';
+        
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dayName = new Date(year, month - 1, d).toLocaleString('en-US', { weekday: 'short' });
+          html += `<div class="tt-header" style="font-size:0.8rem;">${d}<br>${dayName}</div>`;
+        }
+        
+        staffList.forEach(staff => {
+          html += `<div class="tt-cell" style="font-weight:600;">${staff.name}</div>`;
+          for (let d = 1; d <= daysInMonth; d++) {
+            const att = attendance?.find(a => 
+              a.staff_id === staff.id && 
+              new Date(a.date).getDate() === d
+            );
+            const status = att?.status || '';
+            const cls = status === 'present' ? 'badge-present' : status === 'absent' ? 'badge-absent' : '';
+            const symbol = status === 'present' ? '✓' : status === 'absent' ? '✗' : '-';
+            html += `<div class="tt-cell" style="text-align:center;"><span class="badge ${cls}">${symbol}</span></div>`;
+          }
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+      } catch (err) {
+        console.error('Error loading attendance:', err);
+        document.getElementById('attendanceCalendar').innerHTML = '<div style="text-align:center; padding:40px; color:var(--danger);">Error loading attendance</div>';
+      }
+    }
 
-</script>
+    function showMsg(text, type) {
+      const box = document.getElementById('msgBox');
+      box.textContent = text;
+      box.className = `message ${type}`;
+      box.style.display = 'block';
+      setTimeout(() => { box.style.display = 'none'; }, 3000);
+    }
+
+    async function logout() {
+      if (confirm('Logout?')) {
+        await client.auth.signOut();
+        window.location.href = 'login.html';
+      }
+    }
+  </script>
 
 </body>
 </html>

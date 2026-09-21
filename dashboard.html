@@ -1,289 +1,694 @@
-<!DOCTYPE html>
-<html>
+match this theme <!DOCTYPE html>
+<html lang="en">
 <head>
-<title>Dashboard - Adiraj Enterprises</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard - Adiraj Enterprises</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary: #1e3a5f;
+      --primary-dark: #152a45;
+      --secondary: #2c5282;
+      --accent: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --light: #f8fafc;
+      --dark: #0f172a;
+      --gray: #64748b;
+      --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --sidebar-width: 260px;
+    }
 
-<style>
-body {
-  margin:0;
-  font-family: Arial, sans-serif;
-  background:#f4f6f9;
-}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      color: var(--dark);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
 
-/* SIDEBAR */
-.sidebar {
-  width:250px;
-  height:100vh;
-  background:#0f2027;
-  position:fixed;
-  left:0;
-  top:0;
-  padding-top:20px;
-  color:white;
-}
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 24px 16px;
+      color: white;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    }
 
-.sidebar img {
-  width:180px;
-  display:block;
-  margin:0 auto 30px auto;
-}
+    .brand {
+      text-align: center;
+      padding: 12px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 20px;
+    }
 
-.sidebar a {
-  display:block;
-  padding:15px 25px;
-  color:white;
-  text-decoration:none;
-}
+    .brand-logo {
+      width: 160px;
+      height: auto;
+      margin-bottom: 10px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
 
-.sidebar a:hover,
-.sidebar a.active {
-  background:#1a2a40;
-}
+    .brand-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
 
-/* CONTENT */
-.content {
-  margin-left:250px;
-  padding:40px;
-}
+    .brand-tagline {
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.7);
+      margin-top: 4px;
+    }
 
-button {
-  padding:8px 15px;
-  background:#1a2a40;
-  color:white;
-  border:none;
-  cursor:pointer;
-  margin:5px 0;
-}
+    .nav-menu {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
 
-button:hover {
-  background:#243b55;
-}
+    .nav-menu::-webkit-scrollbar { width: 4px; }
+    .nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
 
-.card-container {
-  display:grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap:20px;
-  margin-top:20px;
-}
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+      border-radius: 8px;
+      margin: 4px 0;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      font-size: 0.95rem;
+    }
 
-.card {
-  background:white;
-  padding:25px;
-  border-radius:8px;
-  box-shadow:0 4px 10px rgba(0,0,0,0.1);
-}
+    .nav-item:hover,
+    .nav-item.active {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      transform: translateX(4px);
+    }
 
-.count {
-  font-size:26px;
-  font-weight:bold;
-  color:#1a2a40;
-}
-</style>
+    .nav-item i {
+      width: 20px;
+      text-align: center;
+      font-size: 1.1rem;
+    }
+
+    .logout-btn {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.15);
+    }
+
+    .logout-btn .nav-item {
+      color: #fecaca;
+    }
+    
+    .logout-btn .nav-item:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fff;
+    }
+
+    /* ===== MAIN CONTENT ===== */
+    .content {
+      margin-left: var(--sidebar-width);
+      padding: 32px 40px;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 32px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .page-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: white;
+      padding: 8px 16px;
+      border-radius: 50px;
+      box-shadow: var(--card-shadow);
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    /* ===== BACKUP CONTROLS ===== */
+    .backup-panel {
+      background: white;
+      padding: 20px 24px;
+      border-radius: 12px;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .backup-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .backup-btn:hover { background: var(--primary-dark); }
+    .backup-btn.restore { background: var(--warning); color: var(--dark); }
+    .backup-btn.restore:hover { background: #d97706; }
+
+    #restoreFile {
+      display: none;
+    }
+
+    .backup-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: #e2e8f0;
+      color: var(--dark);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .backup-label:hover { background: #cbd5e1; }
+
+    #backupStatus {
+      margin-left: auto;
+      font-size: 0.9rem;
+      color: var(--success);
+      font-weight: 500;
+    }
+
+    /* ===== STATS CARDS ===== */
+    .card-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 24px;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      border-radius: 16px;
+      box-shadow: var(--card-shadow);
+      transition: transform 0.2s, box-shadow 0.2s;
+      border-left: 4px solid var(--accent);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.15);
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 80px;
+      height: 80px;
+      background: radial-gradient(circle, rgba(59,130,246,0.1) 0%, transparent 70%);
+      border-radius: 0 16px 0 100%;
+    }
+
+    .card h3 {
+      font-size: 0.95rem;
+      color: var(--gray);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h3 i { color: var(--accent); }
+
+    .count {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+
+    .card.outstanding { border-left-color: var(--warning); }
+    .card.outstanding .count { color: var(--warning); }
+    
+    .card.invoices { border-left-color: var(--success); }
+    .card.invoices h3 i { color: var(--success); }
+
+    .card.payments { border-left-color: var(--accent); }
+    .card.parties { border-left-color: #8b5cf6; }
+    .card.items { border-left-color: #ec4899; }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      text-align: center;
+      color: var(--gray);
+      font-size: 0.85rem;
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media (max-width: 1024px) {
+      .sidebar { transform: translateX(-100%); transition: transform 0.3s; }
+      .sidebar.active { transform: translateX(0); }
+      .content { margin-left: 0; padding: 24px; }
+      .menu-toggle { display: block; }
+    }
+
+    @media (max-width: 768px) {
+      .header { flex-direction: column; align-items: flex-start; gap: 16px; }
+      .backup-panel { flex-direction: column; align-items: stretch; }
+      #backupStatus { margin-left: 0; text-align: center; }
+      .card-container { grid-template-columns: 1fr; }
+    }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card { animation: fadeIn 0.4s ease forwards; }
+    .card:nth-child(1) { animation-delay: 0.1s; }
+    .card:nth-child(2) { animation-delay: 0.2s; }
+    .card:nth-child(3) { animation-delay: 0.3s; }
+    .card:nth-child(4) { animation-delay: 0.4s; }
+    .card:nth-child(5) { animation-delay: 0.5s; }
+
+    /* ===== LOADING STATE ===== */
+    .loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(30,58,95,0.2);
+      border-radius: 50%;
+      border-top-color: var(--primary);
+      animation: spin 1s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <img src="assets/logo.png">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="Adiraj Enterprises" class="brand-logo" onerror="this.style.display='none'">
+      <div class="brand-name">Adiraj Enterprises</div>
+      <div class="brand-tagline">Wholesale Distribution Management</div>
+    </div>
 
-  <a href="dashboard.html">🏠 Dashboard</a>
-  <a href="billing.html">📄 Billing</a>
-  <a href="stock.html">📦 Stock</a>
-  <a href="payments.html">💰 Payments</a>
-  <a href="parties.html">👥 Parties</a>
-  <a href="ledger.html">📑 Ledger</a>
-  <a href="history.html">🧾 Invoice History</a>
-  <a href="summary.html">📊 Party Summary</a>
-  <a href="staff.html" id="staffLink" style="display:none;">🧑‍💼 Staff</a>
-  <a href="#" onclick="logout()">🚪 Logout</a>
-</div>
+    <nav class="nav-menu">
+      <a href="dashboard.html" class="nav-item active"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="billing.html" class="nav-item"><i class="fas fa-file-invoice"></i> Billing</a>
+      <a href="stock.html" class="nav-item"><i class="fas fa-boxes"></i> Stock</a>
+      <a href="payments.html" class="nav-item"><i class="fas fa-wallet"></i> Payments</a>
+      <a href="parties.html" class="nav-item"><i class="fas fa-users"></i> Parties</a>
+      <a href="party_rates.html" class="nav-item"><i class="fas fa-tag"></i> Party Rates</a>
+      <a href="ledger.html" class="nav-item"><i class="fas fa-book"></i> Ledger</a>
+      <a href="history.html" class="nav-item"><i class="fas fa-history"></i> Invoice History</a>
+      <a href="summary.html" class="nav-item"><i class="fas fa-chart-pie"></i> Party Summary</a>
+      <a href="staff.html" id="staffLink" class="nav-item" style="display:none;"><i class="fas fa-user-tie"></i> Staff</a>
+    </nav>
 
-<div class="content">
+    <div class="logout-btn">
+      <a href="#" onclick="logout()" class="nav-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+  </aside>
 
-<h2>Dashboard Overview</h2>
+  <!-- MAIN CONTENT -->
+  <main class="content">
+    
+    <header class="header">
+      <h1 class="page-title"><i class="fas fa-tachometer-alt"></i> Dashboard Overview</h1>
+      <div class="user-info">
+        <div class="user-avatar" id="userInitials">AE</div>
+        <span id="userName">Admin</span>
+      </div>
+    </header>
 
-<button onclick="manualBackup()">📥 Manual Backup</button>
-<input type="file" id="restoreFile" accept=".json">
-<button onclick="restoreBackup()">♻ Restore Backup</button>
-<p id="backupStatus"></p>
+    <!-- Backup Controls -->
+    <section class="backup-panel">
+      <button class="backup-btn" onclick="manualBackup()">
+        <i class="fas fa-download"></i> Manual Backup
+      </button>
+      <label class="backup-label" for="restoreFile">
+        <i class="fas fa-upload"></i> Restore Backup
+      </label>
+      <input type="file" id="restoreFile" accept=".json">
+      <span id="backupStatus"></span>
+    </section>
 
-<div class="card-container">
+    <!-- Stats Cards -->
+    <section class="card-container">
+      
+      <div class="card invoices">
+        <h3><i class="fas fa-file-invoice"></i> Total Invoices</h3>
+        <div id="invoiceCount" class="count"><span class="loading"></span>Loading</div>
+      </div>
 
-<div class="card">
-<h3>Total Invoices</h3>
-<div id="invoiceCount" class="count">Loading...</div>
-</div>
+      <div class="card payments">
+        <h3><i class="fas fa-rupee-sign"></i> Total Payments</h3>
+        <div id="paymentCount" class="count"><span class="loading"></span>Loading</div>
+      </div>
 
-<div class="card">
-<h3>Total Payments</h3>
-<div id="paymentCount" class="count">Loading...</div>
-</div>
+      <div class="card parties">
+        <h3><i class="fas fa-users"></i> Total Parties</h3>
+        <div id="partyCount" class="count"><span class="loading"></span>Loading</div>
+      </div>
 
-<div class="card">
-<h3>Total Parties</h3>
-<div id="partyCount" class="count">Loading...</div>
-</div>
+      <div class="card items">
+        <h3><i class="fas fa-cube"></i> Total Items</h3>
+        <div id="itemCount" class="count"><span class="loading"></span>Loading</div>
+      </div>
 
-<div class="card">
-<h3>Total Items</h3>
-<div id="itemCount" class="count">Loading...</div>
-</div>
+      <div class="card outstanding">
+        <h3><i class="fas fa-hand-holding-usd"></i> Total Outstanding</h3>
+        <div id="totalOutstanding" class="count"><span class="loading"></span>Loading</div>
+      </div>
 
-<div class="card">
-<h3>Total Outstanding</h3>
-<div id="totalOutstanding" class="count">Loading...</div>
-</div>
+    </section>
 
-</div>
-</div>
+    <footer class="footer">
+      <p>&copy; <span id="year"></span> Adiraj Enterprises. All rights reserved. | Wholesale Management System v2.0</p>
+    </footer>
 
-<script>
-const { createClient } = supabase;
+  </main>
 
-const client = createClient(
-  "https://tcgspigynbhhrlgtfnux.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjZ3NwaWd5bmJoaHJsZ3RmbnV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTAwMDksImV4cCI6MjA4NzI2NjAwOX0.s6XnSwWiha7GD000I4xyXRqWtWzK1hsrMVuRpFQNgaU"
-);
+  <script>
+    const { createClient } = supabase;
+    const client = createClient(
+      "https://tcgspigynbhhrlgtfnux.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjZ3NwaWd5bmJoaHJsZ3RmbnV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTAwMDksImV4cCI6MjA4NzI2NjAwOX0.s6XnSwWiha7GD000I4xyXRqWtWzK1hsrMVuRpFQNgaU"
+    );
 
-/* ===============================
-   AUTH + ROLE CHECK
-================================= */
+    // Set current year in footer
+    document.getElementById('year').textContent = new Date().getFullYear();
 
-document.addEventListener("DOMContentLoaded", async () => {
+    /* ===============================
+       AUTH + ROLE CHECK
+    ================================= */
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const { data: { user } } = await client.auth.getUser();
+        
+        if (!user) {
+          window.location.href = "login.html";
+          return;
+        }
 
-  const { data: { user } } = await client.auth.getUser();
+        // Set user info in header
+        if (user.user_metadata?.full_name) {
+          document.getElementById('userName').textContent = user.user_metadata.full_name;
+          document.getElementById('userInitials').textContent = 
+            user.user_metadata.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2);
+        }
 
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
+        const { data } = await client
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .single();
 
-  const { data } = await client
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
+        if (data?.role === "admin") {
+          document.getElementById("staffLink").style.display = "flex";
+        }
 
-  if (data.role === "admin") {
-    document.getElementById("staffLink").style.display = "block";
-  }
+        highlightActiveMenu();
+        loadDashboard();
+        autoBackupCheck();
+        
+      } catch (error) {
+        console.error("Auth error:", error);
+        window.location.href = "login.html";
+      }
+    });
 
-  highlightActiveMenu();
-  loadDashboard();
-  autoBackupCheck();
-});
+    /* ===============================
+       DASHBOARD DATA
+    ================================= */
+    async function loadDashboard() {
+      try {
+        const [invoiceRes, paymentRes, partyRes, itemRes, invoicesRes] = await Promise.all([
+          client.from("invoices").select("*", { count: "exact", head: true }),
+          client.from("payments").select("*", { count: "exact", head: true }),
+          client.from("parties").select("*", { count: "exact", head: true }),
+          client.from("items").select("*", { count: "exact", head: true }),
+          client.from("invoices").select("balance_amount")
+        ]);
 
-/* ===============================
-   DASHBOARD DATA
-================================= */
+        const invoiceCount = invoiceRes.count ?? 0;
+        const paymentCount = paymentRes.count ?? 0;
+        const partyCount = partyRes.count ?? 0;
+        const itemCount = itemRes.count ?? 0;
 
-async function loadDashboard() {
+        let totalOutstanding = 0;
+        invoicesRes.data?.forEach(inv => {
+          totalOutstanding += Number(inv.balance_amount || 0);
+        });
 
-  const { count: invoiceCount } = await client.from("invoices").select("*", { count: "exact", head: true });
-  const { count: paymentCount } = await client.from("payments").select("*", { count: "exact", head: true });
-  const { count: partyCount } = await client.from("parties").select("*", { count: "exact", head: true });
-  const { count: itemCount } = await client.from("items").select("*", { count: "exact", head: true });
+        // Animate numbers
+        animateValue("invoiceCount", 0, invoiceCount, 1000);
+        animateValue("paymentCount", 0, paymentCount, 1000);
+        animateValue("partyCount", 0, partyCount, 1000);
+        animateValue("itemCount", 0, itemCount, 1000);
+        animateCurrency("totalOutstanding", 0, totalOutstanding, 1200);
 
-  const { data: parties } = await client.from("parties").select("balance");
-
-  let totalOutstanding = 0;
-  parties?.forEach(p => totalOutstanding += Number(p.balance || 0));
-
-  document.getElementById("invoiceCount").innerText = invoiceCount ?? 0;
-  document.getElementById("paymentCount").innerText = paymentCount ?? 0;
-  document.getElementById("partyCount").innerText = partyCount ?? 0;
-  document.getElementById("itemCount").innerText = itemCount ?? 0;
-  document.getElementById("totalOutstanding").innerText = "₹ " + totalOutstanding.toLocaleString();
-}
-
-/* ===============================
-   BACKUP SYSTEM
-================================= */
-
-async function manualBackup() {
-  document.getElementById("backupStatus").innerText = "Preparing backup...";
-
-  const tables = ["invoices","payments","parties","items","invoice_items","user_roles"];
-  let backup = {};
-
-  for (let table of tables) {
-    const { data } = await client.from(table).select("*");
-    backup[table] = data || [];
-  }
-
-  backup.generated_at = new Date().toISOString();
-
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type:"application/json" });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "adiraj-backup-" + new Date().toISOString().split("T")[0] + ".json";
-  a.click();
-
-  localStorage.setItem("lastBackupTime", new Date().toISOString());
-  document.getElementById("backupStatus").innerText = "Backup Downloaded!";
-}
-
-async function autoBackupCheck() {
-  const lastBackup = localStorage.getItem("lastBackupTime");
-  if (!lastBackup) return manualBackup();
-
-  const hoursDiff = (new Date() - new Date(lastBackup)) / (1000*60*60);
-  if (hoursDiff >= 12) manualBackup();
-}
-
-/* ===============================
-   RESTORE SYSTEM
-================================= */
-
-async function restoreBackup() {
-
-  const fileInput = document.getElementById("restoreFile");
-  const file = fileInput.files[0];
-
-  if (!file) {
-    alert("Select backup file first");
-    return;
-  }
-
-  const text = await file.text();
-  const backup = JSON.parse(text);
-
-  if (!confirm("This will overwrite existing data. Continue?")) return;
-
-  const tables = ["invoices","payments","parties","items","invoice_items","user_roles"];
-
-  for (let table of tables) {
-    if (backup[table]) {
-      await client.from(table).delete().neq("id","0");
-      await client.from(table).insert(backup[table]);
+      } catch (err) {
+        console.error("Dashboard load error:", err);
+        document.querySelectorAll('.count').forEach(el => {
+          el.innerHTML = '<span style="color:#ef4444">Error</span>';
+        });
+      }
     }
-  }
 
-  alert("Restore Completed!");
-  loadDashboard();
-}
-
-/* ===============================
-   HELPERS
-================================= */
-
-async function logout() {
-  await client.auth.signOut();
-  window.location.href = "login.html";
-}
-
-function highlightActiveMenu() {
-  const links = document.querySelectorAll(".sidebar a");
-  links.forEach(link => {
-    if (link.href === window.location.href) {
-      link.classList.add("active");
+    // Smooth number animation
+    function animateValue(id, start, end, duration) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        el.textContent = value.toLocaleString();
+        if (progress < 1) window.requestAnimationFrame(step);
+      };
+      window.requestAnimationFrame(step);
     }
-  });
-}
-</script>
+
+    // Currency animation with ₹ symbol
+    function animateCurrency(id, start, end, duration) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        el.textContent = "₹ " + value.toLocaleString('en-IN');
+        if (progress < 1) window.requestAnimationFrame(step);
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    /* ===============================
+       BACKUP SYSTEM
+    ================================= */
+    async function manualBackup() {
+      const statusEl = document.getElementById("backupStatus");
+      statusEl.innerHTML = '<span class="loading"></span>Preparing...';
+      statusEl.style.color = "var(--warning)";
+
+      try {
+        const tables = ["invoices","payments","parties","items","invoice_items","user_roles"];
+        let backup = {};
+
+        for (let table of tables) {
+          const { data, error } = await client.from(table).select("*");
+          if (error) throw error;
+          backup[table] = data || [];
+        }
+
+        backup.generated_at = new Date().toISOString();
+        backup.meta = { app: "Adiraj Enterprises", version: "2.0" };
+
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type:"application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "adiraj-backup-" + new Date().toISOString().split("T")[0] + ".json";
+        a.click();
+        URL.revokeObjectURL(url);
+
+        localStorage.setItem("lastBackupTime", new Date().toISOString());
+        statusEl.textContent = "✓ Backup downloaded!";
+        statusEl.style.color = "var(--success)";
+        
+        setTimeout(() => { statusEl.textContent = ""; }, 3000);
+        
+      } catch (err) {
+        console.error("Backup error:", err);
+        statusEl.textContent = "✗ Backup failed";
+        statusEl.style.color = "var(--danger)";
+      }
+    }
+
+    async function autoBackupCheck() {
+      const lastBackup = localStorage.getItem("lastBackupTime");
+      if (!lastBackup) return manualBackup();
+
+      const hoursDiff = (new Date() - new Date(lastBackup)) / (1000*60*60);
+      if (hoursDiff >= 12) manualBackup();
+    }
+
+    /* ===============================
+       RESTORE SYSTEM
+    ================================= */
+    async function restoreBackup() {
+      const fileInput = document.getElementById("restoreFile");
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert("⚠️ Please select a backup file first");
+        return;
+      }
+
+      if (!confirm("⚠️ WARNING: This will overwrite ALL existing data.\n\nAre you sure you want to continue?")) {
+        fileInput.value = "";
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        const backup = JSON.parse(text);
+        const tables = ["invoices","payments","parties","items","invoice_items","user_roles"];
+
+        document.getElementById("backupStatus").textContent = "Restoring...";
+        
+        for (let table of tables) {
+          if (backup[table]) {
+            // Delete existing records (keep structure)
+            await client.from(table).delete().neq("id", "0");
+            // Insert restored data
+            if (backup[table].length > 0) {
+              await client.from(table).insert(backup[table]);
+            }
+          }
+        }
+
+        alert("✅ Restore completed successfully!");
+        document.getElementById("backupStatus").textContent = "✓ Restored";
+        document.getElementById("backupStatus").style.color = "var(--success)";
+        loadDashboard();
+        fileInput.value = "";
+        
+      } catch (err) {
+        console.error("Restore error:", err);
+        alert("❌ Restore failed: " + err.message);
+        document.getElementById("backupStatus").textContent = "✗ Error";
+        document.getElementById("backupStatus").style.color = "var(--danger)";
+      }
+    }
+
+    /* ===============================
+       HELPERS
+    ================================= */
+    async function logout() {
+      if (confirm("Are you sure you want to logout?")) {
+        await client.auth.signOut();
+        window.location.href = "login.html";
+      }
+    }
+
+    function highlightActiveMenu() {
+      const links = document.querySelectorAll(".nav-item");
+      const currentPath = window.location.pathname.split('/').pop();
+      
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href === currentPath) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    }
+
+    // Close sidebar on outside click (mobile)
+    document.addEventListener('click', (e) => {
+      const sidebar = document.querySelector('.sidebar');
+      if (window.innerWidth <= 1024 && 
+          !sidebar.contains(e.target) && 
+          !e.target.closest('.menu-toggle')) {
+        sidebar.classList.remove('active');
+      }
+    });
+  </script>
 
 </body>
 </html>

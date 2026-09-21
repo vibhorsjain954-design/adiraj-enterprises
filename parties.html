@@ -1,247 +1,456 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Party Management - Adiraj Enterprises</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<style>
-body {
-  margin:0;
-  font-family: Arial, sans-serif;
-  background:#f4f6f9;
-}
-
-/* SIDEBAR */
-.sidebar {
-  width:250px;
-  height:100vh;
-  background:#0f2027;
-  position:fixed;
-  left:0;
-  top:0;
-  padding-top:20px;
-  color:white;
-}
-
-.sidebar img {
-  width:180px;
-  display:block;
-  margin:0 auto 30px auto;
-}
-
-.sidebar a {
-  display:block;
-  padding:15px 25px;
-  color:white;
-  text-decoration:none;
-}
-
-.sidebar a:hover {
-  background:#1a2a40;
-}
-
-/* CONTENT */
-.content {
-  margin-left:250px;
-  padding:40px;
-}
-
-input {
-  padding:8px;
-  margin:5px;
-}
-
-button {
-  padding:8px 15px;
-  background:#1a2a40;
-  color:white;
-  border:none;
-  cursor:pointer;
-  margin:5px;
-}
-
-button:hover {
-  background:#243b55;
-}
-
-table {
-  width:100%;
-  border-collapse: collapse;
-  margin-top:20px;
-}
-
-table, th, td {
-  border:1px solid #ccc;
-  padding:8px;
-  text-align:center;
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Party Management - Adiraj Enterprises</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --primary-accent: #2563eb;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: #f1f5f9;
+            overflow-x: hidden;
+        }
+        #sidebar {
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            color: #fff;
+            width: 260px;
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 1000;
+            transition: all 0.3s;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.05);
+        }
+        #sidebar .brand { padding: 1.5rem 1.25rem; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        #sidebar .brand h4 { margin: 0; font-weight: 700; color: #fff; font-size: 1.25rem; }
+        #sidebar .brand small { color: #94a3b8; font-size: 0.75rem; letter-spacing: 0.5px; }
+        #sidebar .nav-link {
+            color: #cbd5e1; padding: 0.75rem 1.25rem; border-radius: 8px; margin: 2px 10px;
+            display: flex; align-items: center; gap: 12px; font-size: 0.9rem; transition: all 0.2s;
+        }
+        #sidebar .nav-link:hover { background: var(--sidebar-hover); color: #fff; }
+        #sidebar .nav-link.active {
+            background: var(--primary-accent); color: #fff; font-weight: 500;
+            box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3);
+        }
+        #sidebar .nav-link i { font-size: 1.1rem; width: 20px; text-align: center; }
+        #main-content { margin-left: 260px; transition: all 0.3s; }
+        .top-navbar {
+            background: #fff; padding: 0.75rem 1.5rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            display: flex; justify-content: space-between; align-items: center;
+            position: sticky; top: 0; z-index: 999;
+        }
+        .stat-card {
+            background: #fff; border-radius: 12px; padding: 1.25rem;
+            border: 1px solid #e2e8f0; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
+        .stat-icon { width: 48px; height: 48px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .table-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; }
+        .table-card .card-header { background: #fff; border-bottom: 1px solid #e2e8f0; padding: 1rem 1.5rem; }
+        .custom-table { margin-bottom: 0; }
+        .custom-table thead th {
+            background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-weight: 600;
+            color: #475569; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 1rem 1.5rem;
+        }
+        .custom-table tbody td { padding: 1rem 1.5rem; vertical-align: middle; border-bottom: 1px solid #f1f5f9; color: #334155; }
+        .custom-table tbody tr:hover { background-color: #f8fafc; }
+        .footer { padding: 1.5rem; text-align: center; color: #64748b; font-size: 0.875rem; border-top: 1px solid #e2e8f0; background: #fff; }
+        @media (max-width: 992px) { #sidebar { margin-left: -260px; } #sidebar.active { margin-left: 0; } #main-content { margin-left: 0; } }
+        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 1100; }
+        .spinner-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .spinner-overlay.active { display: flex; }
+        .connection-status { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; padding: 4px 10px; border-radius: 20px; background: #f1f5f9; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+        .status-dot.connected { background: #10b981; }
+        .status-dot.error { background: #ef4444; }
+        .status-dot.connecting { background: #f59e0b; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+    </style>
 </head>
-
 <body>
 
-<div class="sidebar">
-  <img src="assets/logo.png">
-  <a href="dashboard.html">🏠 Dashboard</a>
-  <a href="billing.html">📄 Billing</a>
-  <a href="stock.html">📦 Stock</a>
+<div class="spinner-overlay" id="loadingSpinner">
+    <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;" role="status">
+        <span class="visually-hidden">Loading...</span>
+    </div>
 </div>
 
-<div class="content">
+<nav id="sidebar">
+    <div class="brand">
+        <h4>Adiraj Enterprises</h4>
+        <small>Wholesale Distribution Management</small>
+    </div>
+    <div class="p-2 mt-2">
+        <a href="dashboard.html" class="nav-link"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+        <a href="billing.html" class="nav-link"><i class="bi bi-receipt"></i> New Invoice</a>
+        <a href="edit_invoice.html" class="nav-link"><i class="bi bi-pencil-square"></i> Edit Invoice</a>
+        <a href="stock.html" class="nav-link"><i class="bi bi-box-seam"></i> Stock</a>
+        <a href="payments.html" class="nav-link"><i class="bi bi-credit-card"></i> Payments</a>
+        <a href="parties.html" class="nav-link active"><i class="bi bi-people-fill"></i> Parties</a>
+        <a href="party_rates.html" class="nav-link"><i class="bi bi-tags-fill"></i> Party Rates</a>
+        <a href="ledger.html" class="nav-link"><i class="bi bi-journal-text"></i> Ledger</a>
+        <a href="history.html" class="nav-link"><i class="bi bi-clock-history"></i> Invoice History</a>
+        <a href="summary.html" class="nav-link"><i class="bi bi-pie-chart-fill"></i> Party Summary</a>
+        <a href="staff.html" class="nav-link"><i class="bi bi-person-badge"></i> Staff</a>
+    </div>
+    <div class="p-3 mt-auto border-top border-secondary border-opacity-25">
+        <a href="#" class="nav-link text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </div>
+</nav>
 
-<h2>Party Management</h2>
+<div id="main-content">
+    <div class="top-navbar">
+        <div class="d-flex align-items-center gap-3">
+            <h5 class="mb-0 fw-bold text-dark">👥 Party Management</h5>
+            <span class="connection-status">
+                <span class="status-dot connecting" id="statusDot"></span>
+                <span id="statusText">Connecting...</span>
+            </span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="user-avatar" style="width:36px;height:36px;background:linear-gradient(135deg,#2563eb,#60a5fa);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;">AE</div>
+            <div class="d-none d-md-block">
+                <div class="fw-bold text-dark" style="font-size: 0.9rem;">AEAdmin</div>
+                <div class="text-muted" style="font-size: 0.75rem;">System Administrator</div>
+            </div>
+        </div>
+    </div>
 
-<h3>Add / Update Party</h3>
+    <div class="p-4">
+        <!-- Stats Row -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="stat-card d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-people-fill"></i></div>
+                    <div>
+                        <div class="text-muted small">Total Parties</div>
+                        <div class="fw-bold fs-4" id="statTotalParties">0</div>
+                        <div class="text-muted" style="font-size:0.75rem;">Active customers</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-geo-alt-fill"></i></div>
+                    <div>
+                        <div class="text-muted small">Cities Covered</div>
+                        <div class="fw-bold fs-4" id="statCities">0</div>
+                        <div class="text-muted" style="font-size:0.75rem;">Unique locations</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-telephone-fill"></i></div>
+                    <div>
+                        <div class="text-muted small">With Mobile</div>
+                        <div class="fw-bold fs-4" id="statWithMobile">0</div>
+                        <div class="text-muted" style="font-size:0.75rem;">Contactable</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-<input type="hidden" id="partyId">
+        <!-- Parties Table -->
+        <div class="table-card">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div class="d-flex gap-2 flex-grow-1">
+                    <div class="input-group" style="max-width: 300px;">
+                        <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchParty" class="form-control" placeholder="Search parties...">
+                    </div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="exportPartiesCSV()">
+                        <i class="bi bi-file-earmark-excel"></i> Export
+                    </button>
+                    <button class="btn btn-primary btn-sm px-4" data-bs-toggle="modal" data-bs-target="#addPartyModal">
+                        <i class="bi bi-plus-lg"></i> Add New Party
+                    </button>
+                </div>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table custom-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">#</th>
+                            <th>Party Name</th>
+                            <th>Mobile Number</th>
+                            <th>Address / City</th>
+                            <th class="text-center" style="width: 120px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="partiesTableBody">
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <i class="bi bi-arrow-repeat fs-1 d-block mb-2 opacity-50"></i>
+                                Loading parties from database...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 
-<input type="text" id="partyName" placeholder="Party Name">
-<input type="text" id="partyMobile" placeholder="Mobile">
-<input type="text" id="partyAddress" placeholder="Address">
-
-<button onclick="saveParty()">Save</button>
-
-<hr>
-
-<h3>Party List</h3>
-
-<input type="text" id="searchParty" placeholder="Search Party" onkeyup="loadParties()">
-
-<table id="partyTable">
-  <tr>
-    <th>Name</th>
-    <th>Mobile</th>
-    <th>Address</th>
-    <th>Actions</th>
-  </tr>
-</table>
-
+    <div class="footer">
+        © Adiraj Enterprises. All rights reserved. | Wholesale Management System v2.0
+    </div>
 </div>
+
+<!-- Add Party Modal -->
+<div class="modal fade" id="addPartyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Add New Party</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Party Name *</label>
+                    <input type="text" class="form-control" id="newPartyName" placeholder="Enter business or person name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Mobile Number *</label>
+                    <input type="tel" class="form-control" id="newPartyMobile" placeholder="10-digit mobile number">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Address / City</label>
+                    <textarea class="form-control" id="newPartyAddress" rows="2" placeholder="Full address or city name"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveParty()">
+                    <i class="bi bi-save"></i> Save Party
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container">
+    <div id="liveToast" class="toast align-items-center text-white border-0" role="alert">
+        <div class="d-flex">
+            <div class="toast-body" id="toastMessage"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabaseClient.js"></script>
 
 <script>
-const client = supabase.createClient(
-  "https://tcgspigynbhhrlgtfnux.supabase.co",
-  "sb_publishable_N-fCmOba38-jMzGTo7SbCg_YzdQDoA-"
-);
-async function checkAccess(allowedRoles) {
+const db = window.supabaseClient;
+let allParties = [];
 
-  const { data: { user } } = await client.auth.getUser();
-
-  if (!user) {
-    window.location.href = "login.html";
-    return;
-  }
-
-  const { data, error } = await client
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", user.id)
-    .single();
-
-  if (error || !allowedRoles.includes(data.role)) {
-    alert("Access Denied");
-    window.location.href = "dashboard.html";
-  }
-  async function logout() {
-    await client.auth.signOut();
-    window.location.href = "login.html";
+// Initialize Page
+async function initializePage() {
+    try {
+        setConnectionStatus('connecting', 'Connecting...');
+        showLoading();
+        
+        // Test connection
+        const { error } = await db.from('parties').select('id').limit(1);
+        if (error) throw new Error(error.message);
+        
+        setConnectionStatus('connected', 'Connected to Supabase');
+        
+        await loadParties();
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+        setConnectionStatus('error', 'Connection Failed');
+        showToast(`Failed to connect: ${error.message}`, 'bg-danger');
+        console.error('Initialization error:', error);
+    }
 }
-}
-/* LOAD PARTIES */
+
+// Load Parties from Supabase
 async function loadParties() {
+    try {
+        const { data, error } = await db
+            .from('parties')
+            .select('*')
+            .order('name');
+        
+        if (error) throw error;
+        
+        allParties = data || [];
+        displayParties(allParties);
+        updateStats();
+    } catch (error) {
+        showToast(`Failed to load parties: ${error.message}`, 'bg-danger');
+        console.error(error);
+    }
+}
 
-  const searchValue = document.getElementById("searchParty").value.toLowerCase();
-
-  const { data } = await client
-    .from("parties")
-    .select("*")
-    .order("name", { ascending: true });
-
-  const table = document.getElementById("partyTable");
-  table.innerHTML = `
-    <tr>
-      <th>Name</th>
-      <th>Mobile</th>
-      <th>Address</th>
-      <th>Actions</th>
-    </tr>
-  `;
-
-  data
-    .filter(p => p.name.toLowerCase().includes(searchValue))
-    .forEach(party => {
-
-      table.innerHTML += `
+// Display Parties in Table
+function displayParties(parties) {
+    const tbody = document.getElementById('partiesTableBody');
+    
+    if (parties.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-5 text-muted">
+            <i class="bi bi-people fs-1 d-block mb-2 opacity-50"></i>
+            No parties found. Add your first party using the button above.
+        </td></tr>`;
+        return;
+    }
+    
+    tbody.innerHTML = parties.map((party, index) => `
         <tr>
-          <td>${party.name}</td>
-          <td>${party.mobile || ""}</td>
-          <td>${party.address || ""}</td>
-          <td>
-            <button onclick="editParty('${party.id}','${party.name}','${party.mobile}','${party.address}')">Edit</button>
-            <button onclick="deleteParty('${party.id}')">Delete</button>
-          </td>
+            <td class="fw-bold text-muted">${index + 1}</td>
+            <td class="fw-bold text-primary">${party.name || 'Unknown'}</td>
+            <td>${party.mobile || party.contact || '--'}</td>
+            <td>${party.address || party.city || '--'}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteParty('${party.id}', '${party.name}')" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
         </tr>
-      `;
-    });
+    `).join('');
 }
 
-/* SAVE PARTY */
+// Update Stats Cards
+function updateStats() {
+    document.getElementById('statTotalParties').textContent = allParties.length;
+    
+    const cities = new Set(allParties.map(p => p.address || p.city).filter(Boolean));
+    document.getElementById('statCities').textContent = cities.size;
+    
+    const withMobile = allParties.filter(p => p.mobile || p.contact).length;
+    document.getElementById('statWithMobile').textContent = withMobile;
+}
+
+// Save New Party
 async function saveParty() {
+    const name = document.getElementById('newPartyName').value.trim();
+    const mobile = document.getElementById('newPartyMobile').value.trim();
+    const address = document.getElementById('newPartyAddress').value.trim();
 
-  const id = document.getElementById("partyId").value;
-  const name = document.getElementById("partyName").value;
-  const mobile = document.getElementById("partyMobile").value;
-  const address = document.getElementById("partyAddress").value;
+    if (!name) {
+        showToast('⚠️ Party name is required!', 'bg-warning');
+        return;
+    }
 
-  if (!name) {
-    alert("Party name required");
-    return;
-  }
-
-  if (id) {
-    await client.from("parties")
-      .update({
-        name: name,
-        mobile: mobile,
-        address: address
-      })
-      .eq("id", id);
-  } else {
-    await client.from("parties")
-      .insert([{
-        name: name,
-        mobile: mobile,
-        address: address
-      }]);
-  }
-
-  document.getElementById("partyId").value = "";
-  document.getElementById("partyName").value = "";
-  document.getElementById("partyMobile").value = "";
-  document.getElementById("partyAddress").value = "";
-
-  loadParties();
+    try {
+        showLoading();
+        
+        const { data, error } = await db
+            .from('parties')
+            .insert([{ name, mobile, address, created_at: new Date().toISOString() }])
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        // Refresh list
+        await loadParties();
+        
+        // Clear form and close modal
+        document.getElementById('newPartyName').value = '';
+        document.getElementById('newPartyMobile').value = '';
+        document.getElementById('newPartyAddress').value = '';
+        bootstrap.Modal.getInstance(document.getElementById('addPartyModal')).hide();
+        
+        hideLoading();
+        showToast(`✅ Party "${name}" added successfully!`, 'bg-success');
+    } catch (error) {
+        hideLoading();
+        showToast(`Failed to add party: ${error.message}`, 'bg-danger');
+        console.error('Add party error:', error);
+    }
 }
 
-/* EDIT */
-function editParty(id, name, mobile, address) {
-  document.getElementById("partyId").value = id;
-  document.getElementById("partyName").value = name;
-  document.getElementById("partyMobile").value = mobile;
-  document.getElementById("partyAddress").value = address;
+// Delete Party
+async function deleteParty(partyId, partyName) {
+    if (!confirm(`Are you sure you want to delete "${partyName}"? This action cannot be undone.`)) return;
+    
+    try {
+        showLoading();
+        
+        const { error } = await db
+            .from('parties')
+            .delete()
+            .eq('id', partyId);
+        
+        if (error) throw error;
+        
+        await loadParties();
+        hideLoading();
+        showToast(`✅ Party "${partyName}" deleted successfully!`, 'bg-success');
+    } catch (error) {
+        hideLoading();
+        showToast(`Failed to delete party: ${error.message}`, 'bg-danger');
+        console.error(error);
+    }
 }
 
-/* DELETE */
-async function deleteParty(id) {
-  if (confirm("Delete this party?")) {
-    await client.from("parties").delete().eq("id", id);
-    loadParties();
-  }
+// Export CSV
+function exportPartiesCSV() {
+    if (allParties.length === 0) {
+        return showToast("⚠️ No parties to export", "bg-warning");
+    }
+    
+    let csv = 'Name,Mobile,Address\n';
+    allParties.forEach(p => {
+        csv += `"${p.name || ''}","${p.mobile || p.contact || ''}","${p.address || p.city || ''}"\n`;
+    });
+    
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `parties_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    showToast("✅ Export downloaded", "bg-success");
 }
 
-loadParties();
-checkAccess(['admin']);
+// Search Filter
+document.getElementById('searchParty').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    const filtered = allParties.filter(p => 
+        (p.name || '').toLowerCase().includes(search) ||
+        (p.mobile || p.contact || '').includes(search) ||
+        (p.address || p.city || '').toLowerCase().includes(search)
+    );
+    displayParties(filtered);
+});
+
+// Connection Status Helper
+function setConnectionStatus(status, text) {
+    const dot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    dot.className = 'status-dot ' + status;
+    statusText.textContent = text;
+}
+
+// Helpers
+function showLoading() { document.getElementById('loadingSpinner').classList.add('active'); }
+function hideLoading() { document.getElementById('loadingSpinner').classList.remove('active'); }
+function showToast(message, bgClass = 'bg-success') {
+    const toastEl = document.getElementById('liveToast');
+    toastEl.className = `toast align-items-center text-white border-0 ${bgClass}`;
+    document.getElementById('toastMessage').innerText = message;
+    const toast = new bootstrap.Toast(toastEl);
+    toast.show();
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', initializePage);
 </script>
-
 </body>
 </html>

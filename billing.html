@@ -1,270 +1,803 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<title>Billing - Adiraj Enterprises</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="description" content="Create new invoices - Adiraj Enterprises Wholesale Management">
+  <title>Billing - Adiraj Enterprises</title>
+  
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root {
+      --primary: #1e3a5f;
+      --primary-dark: #152a45;
+      --primary-light: #3b82f6;
+      --secondary: #2c5282;
+      --accent: #3b82f6;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --light: #f8fafc;
+      --dark: #0f172a;
+      --gray: #64748b;
+      --card-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --sidebar-width: 260px;
+      --input-border: #cbd5e1;
+      --input-focus: #3b82f6;
+    }
 
-<style>
-body { margin:0; font-family:Arial; background:#f4f6f9; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      color: var(--dark);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
 
-.sidebar {
-  width:220px;
-  height:100vh;
-  background:#0f2027;
-  position:fixed;
-  padding-top:20px;
-}
+    /* ===== SIDEBAR ===== */
+    .sidebar {
+      width: var(--sidebar-width);
+      height: 100vh;
+      background: linear-gradient(180deg, var(--primary) 0%, var(--primary-dark) 100%);
+      position: fixed;
+      left: 0;
+      top: 0;
+      padding: 24px 16px;
+      color: white;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+    }
 
-.sidebar a {
-  display:block;
-  padding:12px;
-  color:white;
-  text-decoration:none;
-}
+    .brand {
+      text-align: center;
+      padding: 12px 0 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.15);
+      margin-bottom: 20px;
+    }
 
-.sidebar a:hover { background:#1a2a40; }
+    .brand-logo {
+      width: 160px; height: auto; margin-bottom: 10px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
 
-.content { margin-left:220px; padding:20px; }
+    .brand-name { font-size: 1.1rem; font-weight: 600; color: #fff; }
+    .brand-tagline { font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-top: 4px; }
 
-input, select { padding:6px; margin:5px; }
+    .nav-menu { flex: 1; overflow-y: auto; padding-right: 4px; }
+    .nav-menu::-webkit-scrollbar { width: 4px; }
+    .nav-menu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 4px; }
 
-button {
-  padding:8px 15px;
-  background:#1a2a40;
-  color:white;
-  border:none;
-  cursor:pointer;
-  margin:5px;
-}
+    .nav-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px; color: rgba(255,255,255,0.9);
+      text-decoration: none; border-radius: 8px; margin: 4px 0;
+      transition: all 0.2s ease; font-weight: 500; font-size: 0.95rem;
+    }
 
-table {
-  width:100%;
-  border-collapse:collapse;
-  margin-top:15px;
-  background:white;
-}
+    .nav-item:hover, .nav-item.active {
+      background: rgba(255,255,255,0.15); color: #fff; transform: translateX(4px);
+    }
 
-table, th, td {
-  border:1px solid #ccc;
-  padding:6px;
-  text-align:center;
-}
+    .nav-item i { width: 20px; text-align: center; font-size: 1.1rem; }
 
-@media print {
-  body * { visibility:hidden; }
-  #printSection, #printSection * { visibility:visible; }
-  #printSection { position:absolute; left:0; top:0; }
-}
-</style>
+    /* ===== MAIN CONTENT ===== */
+    .content {
+      margin-left: var(--sidebar-width); padding: 32px 40px; min-height: 100vh;
+    }
+
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid #e2e8f0;
+      flex-wrap: wrap; gap: 16px;
+    }
+
+    .page-title {
+      font-size: 1.5rem; font-weight: 700; color: var(--primary);
+      display: flex; align-items: center; gap: 10px;
+    }
+
+    .invoice-meta {
+      display: flex; gap: 20px; flex-wrap: wrap; background: white;
+      padding: 16px 20px; border-radius: 12px; box-shadow: var(--card-shadow); align-items: center;
+    }
+
+    .meta-item { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; }
+    .meta-item label { font-weight: 600; color: var(--gray); min-width: 80px; }
+    .meta-item span { font-weight: 600; color: var(--primary); font-family: monospace; font-size: 1.05rem; }
+
+    /* ===== FORM SECTION ===== */
+    .form-card {
+      background: white; padding: 24px; border-radius: 16px; box-shadow: var(--card-shadow); margin-bottom: 24px;
+    }
+
+    .form-group { margin-bottom: 20px; }
+    .form-label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; color: var(--dark); }
+
+    select {
+      width: 100%; max-width: 400px; padding: 12px 14px; border: 2px solid var(--input-border);
+      border-radius: 10px; font-size: 1rem; transition: all 0.2s ease; background: var(--light);
+    }
+    select:focus { outline: none; border-color: var(--input-focus); background: white; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+
+    /* ===== ITEM TABLE ===== */
+    .table-container { overflow-x: auto; border-radius: 12px; border: 1px solid #e2e8f0; margin: 20px 0; }
+
+    table { width: 100%; border-collapse: collapse; background: white; min-width: 900px; }
+
+    thead { background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%); color: white; }
+    th { padding: 14px 12px; font-weight: 600; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; white-space: nowrap; }
+    td { padding: 12px; border-bottom: 1px solid #e2e8f0; text-align: center; vertical-align: middle; }
+    tbody tr:hover { background: #f8fafc; }
+
+    .item-cell { position: relative; min-width: 200px; text-align: left; }
+    .item-input {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--input-border); border-radius: 8px;
+      font-size: 0.95rem; transition: border-color 0.2s;
+    }
+    .item-input:focus { border-color: var(--input-focus); outline: none; }
+
+    .suggestions {
+      position: absolute; top: 100%; left: 0; right: 0; background: white;
+      border: 1px solid #e2e8f0; border-radius: 8px; max-height: 220px;
+      overflow-y: auto; z-index: 100; box-shadow: var(--card-shadow); margin-top: 4px;
+      display: none;
+    }
+    .suggestions.active { display: block; }
+    .suggestions div { padding: 10px 14px; cursor: pointer; font-size: 0.95rem; transition: background 0.15s; text-align: left; }
+    .suggestions div:hover, .suggestions div.selected { background: var(--primary-light); color: white; }
+    .suggestions .item-meta { font-size: 0.8rem; color: var(--gray); margin-top: 2px; }
+
+    .num-input {
+      width: 85px; padding: 8px 10px; border: 1px solid var(--input-border);
+      border-radius: 6px; text-align: center; font-size: 0.95rem;
+    }
+    .num-input:focus { border-color: var(--input-focus); outline: none; }
+    .pcs-per-box { font-weight: 600; color: var(--primary); min-width: 40px; display: inline-block; }
+    .amount-cell { font-weight: 700; color: var(--dark); min-width: 90px; }
+
+    .action-btn {
+      padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer;
+      font-size: 0.85rem; font-weight: 500; transition: all 0.2s;
+      display: inline-flex; align-items: center; gap: 4px;
+    }
+    .btn-delete { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+    .btn-delete:hover { background: var(--danger); color: white; }
+
+    .btn-add {
+      background: var(--success); color: white; border: none; padding: 10px 20px;
+      border-radius: 8px; font-weight: 600; cursor: pointer; display: inline-flex;
+      align-items: center; gap: 8px; transition: background 0.2s;
+    }
+    .btn-add:hover { background: #059669; }
+
+    /* ===== TOTAL & ACTIONS ===== */
+    .total-section {
+      display: flex; justify-content: flex-end; align-items: center; gap: 24px;
+      padding: 20px 0; border-top: 2px solid #e2e8f0; margin-top: 20px; flex-wrap: wrap;
+    }
+    .grand-total { font-size: 1.8rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+    .grand-total span { font-size: 1rem; font-weight: 500; color: var(--gray); }
+
+    .action-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white; border: none; padding: 12px 28px; border-radius: 10px; font-weight: 600;
+      font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+      transition: all 0.2s; box-shadow: 0 4px 14px rgba(30, 58, 95, 0.25);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30, 58, 95, 0.35); }
+    .btn-secondary {
+      background: white; color: var(--primary); border: 2px solid var(--primary);
+      padding: 12px 28px; border-radius: 10px; font-weight: 600; font-size: 1rem;
+      cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;
+    }
+    .btn-secondary.print { border-color: var(--success); color: var(--success); }
+    .btn-secondary.print:hover { background: var(--success); color: white; }
+
+    #msg {
+      padding: 12px 16px; border-radius: 8px; font-size: 0.95rem; font-weight: 500;
+      margin: 16px 0; display: none; animation: slideIn 0.3s ease;
+    }
+    #msg.error { background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; display: block; }
+    #msg.success { background: #f0fdf4; color: var(--success); border: 1px solid #bbf7d0; display: block; }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ===== PRINT ===== */
+    #printArea { display: none; font-family: Arial, sans-serif; font-size: 12px; max-width: 148mm; margin: auto; }
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; width: 100%; padding: 10mm; display: block !important; }
+      @page { size: A5 portrait; margin: 6mm 8mm 8mm 8mm; }
+    }
+
+    /* ===== LOADING ===== */
+    .spinner {
+      display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 50%; border-top-color: white; animation: spin 0.8s linear infinite; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-primary.loading .btn-text { display: none; }
+    .btn-primary.loading .spinner { display: inline-block; }
+    .btn-primary.loading { pointer-events: none; opacity: 0.9; }
+  </style>
 </head>
 
 <body>
 
-<div class="sidebar">
-  <a href="dashboard.html">Dashboard</a>
-  <a href="billing.html">Billing</a>
-  <a href="stock.html">Stock</a>
-</div>
+  <aside class="sidebar">
+    <div class="brand">
+      <img src="assets/logo.png" alt="Adiraj Enterprises" class="brand-logo" onerror="this.style.display='none'">
+      <div class="brand-name">Adiraj Enterprises</div>
+      <div class="brand-tagline">Wholesale Distribution Management</div>
+    </div>
+    <nav class="nav-menu">
+      <a href="dashboard.html" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
+      <a href="billing.html" class="nav-item active"><i class="fas fa-file-invoice"></i> New Invoice</a>
+      <a href="edit_invoice.html" class="nav-item"><i class="fas fa-edit"></i> Edit Invoice</a>
+      <a href="stock.html" class="nav-item"><i class="fas fa-boxes"></i> Stock</a>
+      <a href="payments.html" class="nav-item"><i class="fas fa-wallet"></i> Payments</a>
+      <a href="parties.html" class="nav-item"><i class="fas fa-users"></i> Parties</a>
+      <a href="party_rates.html" class="nav-item"><i class="fas fa-tag"></i> Party Rates</a>
+      <a href="ledger.html" class="nav-item"><i class="fas fa-book"></i> Ledger</a>
+      <a href="history.html" class="nav-item"><i class="fas fa-history"></i> Invoice History</a>
+      <a href="summary.html" class="nav-item"><i class="fas fa-chart-pie"></i> Party Summary</a>
+      <a href="#" onclick="logout()" class="nav-item" style="margin-top:auto"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </nav>
+  </aside>
 
-<div class="content">
+  <main class="content">
+    <header class="header">
+      <h1 class="page-title"><i class="fas fa-file-invoice-dollar"></i> New Invoice</h1>
+      <div class="invoice-meta">
+        <div class="meta-item"><label><i class="fas fa-hashtag"></i> Invoice No:</label><span id="invoiceNo">Loading...</span></div>
+        <div class="meta-item"><label><i class="fas fa-calendar"></i> Date:</label><span id="displayDate">--/--/----</span></div>
+      </div>
+    </header>
 
-<h2>New Invoice</h2>
+    <section class="form-card">
+      <div class="form-group">
+        <label class="form-label" for="partySelect"><i class="fas fa-users"></i> Select Party</label>
+        <select id="partySelect" onchange="onPartyChange()">
+          <option value="">-- Choose Customer --</option>
+        </select>
+      </div>
 
-<label>Invoice No:</label>
-<input type="text" id="invoiceNo" readonly>
+      <div class="table-container">
+        <table id="billTable">
+          <thead>
+            <tr>
+              <th style="min-width:220px">Item</th>
+              <th>Pcs/Box</th>
+              <th>Boxes</th>
+              <th>Extra Pcs</th>
+              <th>Rate (₹)</th>
+              <th>Amount</th>
+              <th style="width:70px">Action</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
 
-<label>Date:</label>
-<input type="text" id="displayDate" readonly>
+      <button class="btn-add" onclick="addRow()"><i class="fas fa-plus"></i> Add Item</button>
 
-<br>
+      <div class="total-section">
+        <div class="grand-total"><span>Total:</span> ₹ <span id="grandTotal">0</span></div>
+        <div class="action-buttons">
+          <button class="btn-primary" id="saveBtn" onclick="saveInvoice()"><span class="btn-text"><i class="fas fa-save"></i> Save Invoice</span><span class="spinner"></span></button>
+          <button class="btn-secondary print" onclick="printInvoice()"><i class="fas fa-print"></i> Print Invoice</button>
+        </div>
+      </div>
+      <p id="msg" role="alert" aria-live="polite"></p>
+    </section>
 
-<select id="partySelect">
-  <option value="">Select Party</option>
-</select>
+    <div id="printArea"></div>
+  </main>
 
-<table id="billTable">
-<tr>
-  <th>Item</th>
-  <th>Box</th>
-  <th>Pcs</th>
-  <th>Rate</th>
-  <th>Total</th>
-</tr>
-</table>
+  <script>
+    const { createClient } = supabase;
+    const client = createClient(
+      "https://tcgspigynbhhrlgtfnux.supabase.co",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRjZ3NwaWd5bmJoaHJsZ3RmbnV4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE2OTAwMDksImV4cCI6MjA4NzI2NjAwOX0.s6XnSwWiha7GD000I4xyXRqWtWzK1hsrMVuRpFQNgaU"
+    );
 
-<button onclick="addRow()">Add Item</button>
+    let itemsCache = [];
 
-<h3>Total: ₹ <span id="grandTotal">0</span></h3>
+    /* ===============================
+       INIT
+    ================================= */
+    document.addEventListener("DOMContentLoaded", () => {
+      setToday();
+      generateInvoice();
+      loadParties();
+      loadItems();
+    });
 
-<button onclick="saveInvoice()">Save</button>
-<button onclick="printInvoice()">Print</button>
+    function setToday() {
+      const d = new Date();
+      document.getElementById("displayDate").textContent = 
+        `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+    }
 
-</div>
+    async function generateInvoice() {
+      try {
+        const {data} = await client.from("invoices").select("invoice_no").order("invoice_no", {ascending: false}).limit(1);
+        let next = 1;
+        if (data?.length) next = parseInt(data[0].invoice_no.replace("AD","")) + 1;
+        document.getElementById("invoiceNo").textContent = "AD" + String(next).padStart(2, '0');
+      } catch (e) { console.error(e); }
+    }
 
-<div id="printSection" style="display:none; width:350px; padding:15px; font-size:12px;">
-  <div style="text-align:center;">
-    <img src="assets/logo.png" width="120"><br>
-    <b>Adiraj Enterprises</b><br>
-    Mob: 8655599968, 9309102823
-    <hr style="border:1px solid black;">
-  </div>
+    async function loadParties() {
+      const {data} = await client.from("parties").select("*").order("name");
+      const sel = document.getElementById("partySelect");
+      data?.forEach(p => {
+        const opt = document.createElement("option");
+        opt.value = p.id; opt.textContent = p.name; sel.appendChild(opt);
+      });
+    }
 
-  <b>Invoice No:</b> <span id="pInvoiceNo"></span><br>
-  <b>Date:</b> <span id="pDate"></span><br>
-  <b>Party:</b> <span id="pParty"></span>
-  <hr style="border:1px solid black;">
+    async function loadItems() {
+      const {data} = await client.from("items").select("*").order("name");
+      itemsCache = data || [];
+    }
 
-  <table width="100%">
-    <thead>
-      <tr>
-        <th align="left">Item</th>
-        <th align="center">Box</th>
-        <th align="center">Pcs</th>
-        <th align="right">Amt</th>
-      </tr>
-    </thead>
-    <tbody id="pItems"></tbody>
-  </table>
+    /* ===============================
+       ROW MANAGEMENT
+    ================================= */
+    function addRow() {
+      const tbody = document.querySelector("#billTable tbody");
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td class="item-cell">
+          <input class="item-input" placeholder="Search item..." autocomplete="off">
+          <div class="suggestions"></div>
+        </td>
+        <td><span class="pcs-per-box">—</span></td>
+        <td><input class="num-input box" type="number" min="0" placeholder="0" oninput="calc()" onkeydown="navKey(event, this)"></td>
+        <td><input class="num-input pcs" type="number" min="0" placeholder="0" oninput="calc()" onkeydown="navKey(event, this)"></td>
+        <td><input class="num-input rate" type="number" min="0" step="0.01" placeholder="0.00" oninput="calc()" onkeydown="navKey(event, this)"></td>
+        <td class="amount-cell">₹ 0</td>
+        <td><button class="action-btn btn-delete" onclick="deleteRow(this)"><i class="fas fa-trash"></i></button></td>
+      `;
+      tbody.appendChild(row);
+      setupRowEvents(row);
+      row.querySelector(".item-input").focus();
+    }
 
-  <hr style="border:1px solid black;">
-  <div style="text-align:right;">
-    <b>Total: ₹ <span id="pTotal"></span></b>
-  </div>
-</div>
+    function deleteRow(btn) {
+      if (document.querySelectorAll("#billTable tbody tr").length <= 1) return showMessage("At least one row required", "error");
+      btn.closest("tr").remove(); calc();
+    }
 
-<script>
-const { createClient } = supabase;
+    /* ===============================
+       SEARCH & AUTO-FILL
+    ================================= */
+    function setupRowEvents(row) {
+      const inp = row.querySelector(".item-input");
+      const sug = row.querySelector(".suggestions");
+      let timer;
 
-const client = createClient(
-  "https://tcgspigynbhhrlgtfnux.supabase.co",
-  "PASTE_YOUR_REAL_ANON_PUBLIC_KEY_HERE"
-);
+      inp.addEventListener("input", () => {
+        clearTimeout(timer);
+        timer = setTimeout(() => itemSearch(inp, sug), 150);
+      });
 
-/* DATE */
-function setTodayDate(){
-  const d=new Date();
-  document.getElementById("displayDate").value =
-    String(d.getDate()).padStart(2,'0')+"-"+
-    String(d.getMonth()+1).padStart(2,'0')+"-"+
-    d.getFullYear();
-}
-function getDBDate(){ return new Date().toISOString().split("T")[0]; }
+      inp.addEventListener("keydown", (e) => handleSearchKey(e, inp, row, sug));
+      row.querySelectorAll(".num-input").forEach(n => n.addEventListener("input", calc));
+      inp.addEventListener("blur", () => setTimeout(() => sug.classList.remove("active"), 200));
+    }
 
-/* INVOICE NUMBER */
-async function generateInvoiceNumber(){
-  const {data}=await client
-    .from("invoices")
-    .select("invoice_no")
-    .order("invoice_no",{ascending:false})
-    .limit(1);
+    function itemSearch(inp, sug) {
+      const val = inp.value.toLowerCase().trim();
+      sug.innerHTML = ""; sug.classList.remove("active");
+      if (val.length < 2) return;
 
-  let next=1;
-  if(data && data.length>0){
-    next=parseInt(data[0].invoice_no.replace("AD",""))+1;
+      const matches = itemsCache.filter(i => i.name.toLowerCase().includes(val)).slice(0, 10);
+      if (!matches.length) return;
+
+      matches.forEach(item => {
+        const div = document.createElement("div");
+        div.innerHTML = `<strong>${highlight(item.name, val)}</strong>
+          <div class="item-meta">📦 ${item.pcs_per_box||1}/box • 💰 ₹${item.rate?.toFixed(2)}</div>`;
+        div.onclick = () => selectItem(inp, item, sug);
+        sug.appendChild(div);
+      });
+      sug.classList.add("active");
+    }
+
+    async function selectItem(inp, item, sug) {
+      const row = inp.closest("tr");
+      const partyId = document.getElementById("partySelect").value;
+
+      row.dataset.itemid = item.id;
+      row.dataset.pcsbox = item.pcs_per_box || 1;
+      row.dataset.itemname = item.name;
+
+      inp.value = item.name;
+      row.querySelector(".pcs-per-box").textContent = item.pcs_per_box || 1;
+      row.querySelector(".rate").value = item.rate?.toFixed(2) || "0.00";
+
+      if (partyId) await applyPartyRate(row, partyId, item.id);
+
+      sug.classList.remove("active"); sug.innerHTML = "";
+      calc(); row.querySelector(".box").focus();
+    }
+
+    async function applyPartyRate(row, partyId, itemId) {
+      try {
+        const { data } = await client.from("party_item_rates")
+          .select("special_rate")
+          .eq("party_id", partyId)
+          .eq("item_id", itemId)
+          .maybeSingle();
+        
+        if (data?.special_rate !== null && data?.special_rate !== undefined) {
+          const rateInp = row.querySelector(".rate");
+          rateInp.value = parseFloat(data.special_rate).toFixed(2);
+          rateInp.style.borderColor = "#f59e0b";
+          setTimeout(() => rateInp.style.borderColor = "", 1500);
+        }
+      } catch(e) { console.warn("Rate fetch failed", e); }
+    }
+
+    async function onPartyChange() {
+      const partyId = document.getElementById("partySelect").value;
+      if (!partyId) return;
+
+      showMessage("🔄 Updating party rates...", "success");
+      const rows = document.querySelectorAll("#billTable tbody tr");
+      for (let row of rows) {
+        if (row.dataset.itemid) await applyPartyRate(row, partyId, row.dataset.itemid);
+      }
+      calc();
+      setTimeout(() => { document.getElementById("msg").textContent=""; document.getElementById("msg").className=""; }, 1500);
+    }
+
+    function highlight(text, query) {
+      return text.replace(new RegExp(`(${query})`, "gi"), '<mark style="background:#fef08a;padding:0 3px;border-radius:3px">$1</mark>');
+    }
+
+    /* ===============================
+       KEYBOARD NAV
+    ================================= */
+    function handleSearchKey(e, inp, row, sug) {
+      const items = sug.querySelectorAll("div");
+      const sel = sug.querySelector(".selected");
+      let idx = Array.from(items).indexOf(sel);
+
+      if (e.key === "ArrowDown") { 
+        e.preventDefault(); 
+        if(sug.classList.contains("active")) { 
+          if(sel) sel.classList.remove("selected"); 
+          idx++; 
+          const next=items[idx%items.length]; 
+          if(next) { next.classList.add("selected"); next.scrollIntoView({block:"nearest"}); }
+        }
+      }
+      else if (e.key === "ArrowUp") { 
+        e.preventDefault(); 
+        if(sug.classList.contains("active")) { 
+          if(sel) sel.classList.remove("selected"); 
+          idx--; 
+          const next=items[(idx+items.length)%items.length]; 
+          if(next) { next.classList.add("selected"); next.scrollIntoView({block:"nearest"}); }
+        }
+      }
+      else if (e.key === "Enter") { 
+        e.preventDefault(); 
+        if (sel) { sel.click(); } 
+        else if (inp.value.trim()) { row.querySelector(".box")?.focus(); }
+      }
+      else if (e.key === "Escape") { 
+        sug.classList.remove("active"); 
+        sug.innerHTML=""; 
+      }
+    }
+
+    function navKey(e, el) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const row = el.closest("tr");
+        if (el.classList.contains("box")) row?.querySelector(".pcs")?.focus();
+        else if (el.classList.contains("pcs")) row?.querySelector(".rate")?.focus();
+        else if (el.classList.contains("rate")) addRow();
+      }
+    }
+
+    /* ===============================
+       CALCULATE
+    ================================= */
+    function calc() {
+      let total = 0;
+      document.querySelectorAll("#billTable tbody tr").forEach(row => {
+        const pcsBox = parseFloat(row.dataset.pcsbox) || 1;
+        const box = parseFloat(row.querySelector(".box")?.value) || 0;
+        const pcs = parseFloat(row.querySelector(".pcs")?.value) || 0;
+        const rate = parseFloat(row.querySelector(".rate")?.value) || 0;
+        const amt = Math.round((box * rate) + (pcs * (rate / pcsBox)));
+        const amtCell = row.querySelector(".amount-cell");
+        if (amtCell) amtCell.textContent = `₹ ${amt.toLocaleString()}`;
+        total += amt;
+      });
+      document.getElementById("grandTotal").textContent = total.toLocaleString();
+      return total;
+    }
+
+    /* ===============================
+       SAVE INVOICE - FIXED VALIDATION
+    ================================= */
+
+async function saveInvoice() {
+  const partyId = document.getElementById("partySelect").value;
+  if (!partyId) return showMessage("⚠️ Please select a party", "error");
+  
+  const rows = document.querySelectorAll("#billTable tbody tr");
+  const hasValidItem = Array.from(rows).some(row => row.dataset.itemid);
+  if (!hasValidItem) return showMessage("⚠️ Please add at least one item", "error");
+
+  const btn = document.getElementById("saveBtn");
+  btn.classList.add("loading");
+  showMessage("🔍 Checking stock availability...", "success");
+
+  try {
+    // ✅ STEP 1: CHECK STOCK BEFORE SAVING
+    const stockErrors = [];
+    const itemsToProcess = [];
+    
+    for (let row of rows) {
+      if (!row.dataset.itemid) continue;
+      
+      const pcsBox = parseFloat(row.dataset.pcsbox) || 1;
+      const box = parseFloat(row.querySelector(".box")?.value) || 0;
+      const pcs = parseFloat(row.querySelector(".pcs")?.value) || 0;
+      const totalQty = (box * pcsBox) + pcs;
+      
+      if (totalQty <= 0) continue;
+      
+      // Check current stock
+      const { data: stockData, error: stockCheckErr } = await client
+        .from("items")
+        .select("stock_pieces, name")
+        .eq("id", row.dataset.itemid)
+        .single();
+      
+      if (stockCheckErr) {
+        console.error("Stock check error:", stockCheckErr);
+        throw new Error(`Failed to check stock for ${row.dataset.itemname}`);
+      }
+      
+      const availableStock = stockData.stock_pieces || 0;
+      
+      if (totalQty > availableStock) {
+        stockErrors.push({
+          item: row.dataset.itemname,
+          requested: totalQty,
+          available: availableStock,
+          shortage: totalQty - availableStock
+        });
+      } else {
+        itemsToProcess.push({
+          row,
+          itemid: row.dataset.itemid,
+          pcsBox,
+          box,
+          pcs,
+          totalQty
+        });
+      }
+    }
+    
+    // ✅ BLOCK if insufficient stock
+    if (stockErrors.length > 0) {
+      btn.classList.remove("loading");
+      let errorMsg = "❌ Insufficient Stock:\n\n";
+      stockErrors.forEach(err => {
+        errorMsg += `• ${err.item}\n`;
+        errorMsg += `  Requested: ${err.requested} pcs\n`;
+        errorMsg += `  Available: ${err.available} pcs\n`;
+        errorMsg += `  Shortage: ${err.shortage} pcs\n\n`;
+      });
+      errorMsg += "Please update stock or reduce quantity.";
+      return showMessage(errorMsg, "error");
+    }
+    
+    showMessage("✅ Stock available. Creating invoice...", "success");
+
+    // ✅ STEP 2: CREATE INVOICE
+    const total = calc();
+    const {data: newInv, error: invErr} = await client.from("invoices").insert([{
+      invoice_no: document.getElementById("invoiceNo").textContent,
+      party_id: partyId, 
+      total_amount: total, 
+      paid_amount: 0, 
+      balance_amount: total,
+      date: new Date().toISOString().split("T")[0]
+    }]).select().single();
+    
+    if (invErr || !newInv) {
+      console.error("Invoice error:", invErr);
+      throw invErr || new Error("Invoice creation failed");
+    }
+
+    // ✅ STEP 3: SAVE ITEMS & REDUCE STOCK
+    for (let item of itemsToProcess) {
+      const rate = parseFloat(item.row.querySelector(".rate")?.value) || 0;
+      const itemTotal = Math.round((item.box * rate) + (item.pcs * (rate / item.pcsBox)));
+      
+      // Insert invoice item
+      const {error: itemErr} = await client.from("invoice_items").insert([{
+        invoice_id: newInv.id, 
+        item_id: item.itemid, 
+        box: item.box, 
+        pcs: item.pcs, 
+        rate, 
+        total: itemTotal
+      }]);
+      
+      if (itemErr) {
+        console.error("Item error:", itemErr);
+        throw new Error(`Failed to save item: ${itemErr.message}`);
+      }
+      
+      // Reduce stock (this should never fail now)
+      const { error: stockErr } = await client.rpc("reduce_stock", { 
+        itemid: item.itemid, 
+        qty: item.totalQty 
+      });
+      
+      if (stockErr) {
+        console.error("Stock reduction failed:", stockErr);
+        throw new Error(`Stock update failed: ${stockErr.message}`);
+      }
+    }
+
+    showMessage("✅ Invoice saved successfully!", "success");
+    setTimeout(() => { 
+      if(confirm("Invoice saved! Create new invoice?")) location.reload(); 
+      else window.location.href="history.html"; 
+    }, 1000);
+    
+  } catch (err) {
+    console.error("Save error:", err);
+    showMessage("❌ Save failed: " + err.message, "error");
+    btn.classList.remove("loading");
   }
-  document.getElementById("invoiceNo").value=
-    "AD"+String(next).padStart(5,'0');
 }
 
-/* LOAD PARTIES */
-async function loadParties(){
-  const {data,error}=await client.from("parties").select("*").order("name");
-  if(error){ alert("Error loading parties"); return; }
-  data.forEach(p=>{
-    const opt=document.createElement("option");
-    opt.value=p.id;
-    opt.textContent=p.name;
-    document.getElementById("partySelect").appendChild(opt);
-  });
-}
+    /* ===============================
+       PRINT - FIXED SELECTORS & LAYOUT PRESERVED
+    ================================= */
+    function printInvoice() {
+      // ✅ FIXED: Use textContent for span elements (not .value)
+      const invoiceNo = document.getElementById("invoiceNo").textContent || "N/A";
+      // ✅ FIXED: Correct ID is "displayDate", not "invoiceDate"
+      const date = document.getElementById("displayDate").textContent || "N/A";
+      const partySelect = document.getElementById("partySelect");
+      const partyName = partySelect && partySelect.selectedIndex > 0 ? partySelect.options[partySelect.selectedIndex].text : "Walk-in Customer";
+      const grandTotal = document.getElementById("grandTotal").textContent || "0";
 
-/* ADD ROW */
-async function addRow(){
-  const {data:items}=await client.from("items").select("*").order("name");
-  const row=document.getElementById("billTable").insertRow();
+      let rowsHTML = "";
+      let sr = 1;
+      const maxLines = 10;
 
-  let options='<option value="">Select</option>';
-  items.forEach(i=>{
-    options+=`<option value="${i.id}" data-rate="${i.rate}" data-pcs="${i.pcs_per_box}">${i.name}</option>`;
-  });
+      // ✅ FIXED: Use proper querySelector for table rows
+      const tbody = document.querySelector("#billTable tbody");
+      const rows = tbody ? tbody.getElementsByTagName("tr") : [];
+      
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        const itemName = r.dataset.itemname || '';
+        const boxInput = r.querySelector(".box");
+        const pcsInput = r.querySelector(".pcs");
+        const rateInput = r.querySelector(".rate");
+        const amtCell = r.querySelector(".amount-cell"); // ✅ FIXED: Class is "amount-cell", not "amt"
+        
+        const box = boxInput ? parseFloat(boxInput.value) || 0 : 0;
+        const pcs = pcsInput ? parseFloat(pcsInput.value) || 0 : 0;
+        const rate = rateInput ? parseFloat(rateInput.value) || 0 : 0;
+        const total = amtCell ? amtCell.textContent.replace('₹ ', '').replace(',', '') : '0';
+        const pcsBox = parseFloat(r.dataset.pcsbox) || 1;
 
-  row.innerHTML=`
-    <td><select onchange="itemSelected(this)">${options}</select></td>
-    <td><input type="number" value="0" oninput="calculateTotal()"></td>
-    <td><input type="number" value="0" oninput="calculateTotal()"></td>
-    <td><input type="number" value="0" oninput="calculateTotal()"></td>
-    <td>0</td>
-  `;
-}
+        rowsHTML += `
+          <tr>
+            <td>${sr++}</td>
+            <td style="text-align:left">${itemName}</td>
+            <td>${pcsBox}</td>
+            <td>${box}</td>
+            <td>${pcs}</td>
+            <td>${rate}</td>
+            <td style="text-align:right">₹${total}</td>
+          </tr>`;
+      }
 
-/* RATE */
-function itemSelected(sel){
-  const rate=sel.options[sel.selectedIndex].dataset.rate || 0;
-  sel.closest("tr").cells[3].children[0].value=rate;
-  calculateTotal();
-}
+      // Fill empty rows to match A5 layout
+      for (let i = rows.length; i < maxLines; i++) {
+        rowsHTML += `<tr><td>${sr++}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+      }
 
-/* TOTAL */
-function calculateTotal(){
-  let grand=0;
-  const rows=document.querySelectorAll("#billTable tr");
-  rows.forEach((r,i)=>{
-    if(i===0) return;
-    const box=+r.cells[1].children[0].value||0;
-    const pcs=+r.cells[2].children[0].value||0;
-    const rate=+r.cells[3].children[0].value||0;
-    const total=(box+pcs)*rate;
-    r.cells[4].innerText=total;
-    grand+=total;
-  });
-  document.getElementById("grandTotal").innerText=grand;
-}
+      // ✅ EXACT print layout preserved - no changes to HTML structure
+      let html = `
+        <style>
+          @page { size: A5 portrait; margin: 6mm 8mm 8mm 8mm; }
+          body { font-family: Arial, sans-serif; font-size: 12px; }
+          table { width:100%; border-collapse:collapse; }
+          td, th { border:1px solid #000; padding:5px 4px; text-align:center; font-size:11.8px; }
+          .header { font-size:15px; font-weight:bold; text-align:center; border:none; padding:4px 0; }
+          .left { text-align:left; }
+          .right { text-align:right; }
+        </style>
+        <div style="max-width:148mm; margin:auto">
+          <table>
+            <tr><td colspan="7" class="header">|| SHREE VITARAGAYA NAMAH ||</td></tr>
+          </table>
+          <br>
+          <table>
+            <tr><td class="left"><b>Party:</b> ${partyName}</td><td class="right"><b>Date:</b> ${date}</td></tr>
+            <tr><td class="left"><b>Invoice No:</b> ${invoiceNo}</td><td></td></tr>
+          </table>
+          <br>
+          <table>
+            <tr class="bold">
+              <th>SR</th>
+              <th class="left">ITEM NAME</th>
+              <th>Pcs/Box</th>
+              <th>Boxes</th>
+              <th>Extra Pcs</th>
+              <th>Rate</th>
+              <th>TOTAL</th>
+            </tr>
+            ${rowsHTML}
+          </table>
+          <br>
+          <table style="width:50%; margin-left:auto">
+            <tr class="bold"><td class="right">TOTAL</td><td class="right">₹ ${grandTotal}</td></tr>
+          </table>
+          <p style="text-align:center; margin-top:25px; font-size:11px;">Thank You! Visit Again</p>
+        </div>
+      `;
 
-/* SAVE */
-async function saveInvoice(){
-  const party=document.getElementById("partySelect").value;
-  if(!party){ alert("Select party"); return; }
+      let w = window.open("", "_blank", "width=800,height=600");
+      if (!w) {
+        showMessage("⚠️ Please allow popups to print", "error");
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+      
+      // Wait for styles to load before printing
+      w.onload = function() {
+        setTimeout(() => {
+          w.print();
+          w.close();
+        }, 300);
+      };
+    }
 
-  const rows=document.querySelectorAll("#billTable tr");
-  let totalAmount=+document.getElementById("grandTotal").innerText;
-
-  const {data:inv,error}=await client
-    .from("invoices")
-    .insert([{
-      invoice_no:document.getElementById("invoiceNo").value,
-      party_id:party,
-      total_amount:totalAmount,
-      date:getDBDate()
-    }])
-    .select()
-    .single();
-
-  if(error){ alert("Error saving invoice"); return; }
-
-  alert("Invoice Saved!");
-  location.reload();
-}
-
-/* PRINT */
-function printInvoice(){
-  document.getElementById("pInvoiceNo").innerText=
-    document.getElementById("invoiceNo").value;
-  document.getElementById("pDate").innerText=
-    document.getElementById("displayDate").value;
-  document.getElementById("pTotal").innerText=
-    document.getElementById("grandTotal").innerText;
-
-  const partySel=document.getElementById("partySelect");
-  document.getElementById("pParty").innerText=
-    partySel.options[partySel.selectedIndex].text;
-
-  window.print();
-}
-
-setTodayDate();
-generateInvoiceNumber();
-loadParties();
-</script>
-
+    /* ===============================
+       UTILS
+    ================================= */
+    function showMessage(txt, type) {
+      const el = document.getElementById("msg"); 
+      if (el) {
+        el.textContent = txt; 
+        el.className = type;
+      }
+    }
+    
+    async function logout() { 
+      if(confirm("Logout?")) { 
+        await client.auth.signOut(); 
+        window.location.href="login.html"; 
+      } 
+    }
+  </script>
 </body>
 </html>
