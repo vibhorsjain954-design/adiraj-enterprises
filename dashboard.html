@@ -1,4 +1,4 @@
-match this theme <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -618,42 +618,75 @@ match this theme <!DOCTYPE html>
         return;
       }
 
-      if (!confirm("⚠️ WARNING: This will overwrite ALL existing data.\n\nAre you sure you want to continue?")) {
+      if (!confirm("⚠️ This will restore missing records from the backup. Existing records will NOT be deleted or overwritten.\n\nContinue?")) {
         fileInput.value = "";
         return;
       }
 
+      const statusEl = document.getElementById("backupStatus");
+
       try {
+        statusEl.textContent = "Restoring missing data...";
+        statusEl.style.color = "var(--warning)";
+
         const text = await file.text();
         const backup = JSON.parse(text);
-        const tables = ["invoices","payments","parties","items","invoice_items","user_roles"];
 
-        document.getElementById("backupStatus").textContent = "Restoring...";
-        
-        for (let table of tables) {
-          if (backup[table]) {
-            // Delete existing records (keep structure)
-            await client.from(table).delete().neq("id", "0");
-            // Insert restored data
-            if (backup[table].length > 0) {
-              await client.from(table).insert(backup[table]);
-            }
+        const restoreOrder = [
+          "parties",
+          "items",
+          "invoices",
+          "invoice_items",
+          "payments",
+          "user_roles"
+        ];
+
+        let restoredCount = 0;
+
+        for (const table of restoreOrder) {
+          if (!Array.isArray(backup[table]) || backup[table].length === 0) continue;
+
+          const { data: existingRows, error: readError } = await client
+            .from(table)
+            .select("id");
+
+          if (readError) {
+            throw new Error(`Could not read ${table}: ${readError.message}`);
           }
+
+          const existingIds = new Set((existingRows || []).map(row => row.id));
+          const missingRows = backup[table].filter(row => row.id && !existingIds.has(row.id));
+
+          if (missingRows.length === 0) continue;
+
+          const { error: insertError } = await client
+            .from(table)
+            .insert(missingRows);
+
+          if (insertError) {
+            throw new Error(`Could not restore ${table}: ${insertError.message}`);
+          }
+
+          restoredCount += missingRows.length;
         }
 
-        alert("✅ Restore completed successfully!");
-        document.getElementById("backupStatus").textContent = "✓ Restored";
-        document.getElementById("backupStatus").style.color = "var(--success)";
-        loadDashboard();
+        alert(`✅ Restore completed! ${restoredCount} missing records were restored.\n\nExisting records were not deleted or overwritten.`);
+        statusEl.textContent = `✓ Restored ${restoredCount} missing records`;
+        statusEl.style.color = "var(--success)";
+        await loadDashboard();
         fileInput.value = "";
-        
+
       } catch (err) {
         console.error("Restore error:", err);
         alert("❌ Restore failed: " + err.message);
-        document.getElementById("backupStatus").textContent = "✗ Error";
-        document.getElementById("backupStatus").style.color = "var(--danger)";
+        statusEl.textContent = "✗ Restore error";
+        statusEl.style.color = "var(--danger)";
+        fileInput.value = "";
       }
     }
+
+    // Start restore immediately after selecting a backup file
+    document.getElementById("restoreFile").addEventListener("change", restoreBackup);
 
     /* ===============================
        HELPERS
